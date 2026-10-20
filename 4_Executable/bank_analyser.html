@@ -60,11 +60,11 @@ const MON={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,de
 function pdt(s){if(s instanceof Date)return s;if(typeof s==='number'&&s>20000)return new Date(1899,11,30+Math.floor(s));
  const m=String(s).trim().match(/^(\d{1,2})[\/\-. ]([A-Za-z]{3}|\d{1,2})[\/\-. ,]*(\d{2,4})/);if(!m)return null;
  let mo=isNaN(m[2])?MON[m[2].toLowerCase()]:m[2]-1,y=+m[3];if(y<100)y+=2000;if(mo>11||mo==null)return null;return new Date(y,mo,+m[1])}
-const num=s=>parseFloat(String(s).replace(/[,₹\s]|Cr|Dr/gi,''))||0;
+const num=s=>{const t=String(s).trim(),neg=/^\(.*\)$/.test(t)||/^-/.test(t),v=parseFloat(t.replace(/[(),₹\s+-]|Cr|Dr/gi,''))||0;return neg?-v:v};
 let rows=[],meta={},cfg={},charts=[],last=null;
 const BANKS=['Central Bank','Bank of Maharashtra','HDFC','ICICI','State Bank of India','SBI','Axis','Kotak','Punjab National','Bank of Baroda','Canara','Union Bank','IDFC','Yes Bank','IndusInd','Federal','Bank of India','Indian Bank','UCO','Central Bank','RBL','Saraswat','Cosmos','Bandhan','AU Small'];
-function getMeta(t){const m={};let x=t.match(/(?:account\s*name|customer\s*name|name\s*of\s*(?:the\s*)?(?:customer|account holder)|a\/c\s*name|name)\s*[:\-]\s*([A-Za-z][A-Za-z .&]{2,50})/i);m.name=x?x[1].trim():'';if(!m.name){x=t.match(/Downloaded By\s+([A-Z][A-Za-z .&]+?)\s+on\s/)||t.match(/Product type[^\n]*\n\s*([A-Z][A-Z &.]{3,50})/);m.name=x?x[1].trim():''}
- x=t.match(/(?:a\/c|account)\s*(?:no|number|#)?\.?\s*[:\-]?\s*(\d{9,18})/i);m.acc=x?x[1]:'';x=BANKS.find(b=>new RegExp(b,'i').test(t));m.bank=x||'';
+function getMeta(t){const m={};let x=t.match(/(?:account\s*name|customer\s*name|name\s*of\s*(?:the\s*)?(?:customer|account holder)|a\/c\s*name|name)\s*[:\-]\s*([A-Za-z][A-Za-z .&]{2,50})/i);m.name=x?x[1].trim():'';if(!m.name){x=t.match(/Transactions List\s*-\s*([A-Z][A-Za-z .&]+?)\s*-\s*\d{6,}/)||t.match(/Account Number\s+\d+\s*\(\s*\w+\s*\)\s*-\s*([A-Z][A-Za-z .&]+)/)||t.match(/Downloaded By\s+([A-Z][A-Za-z .&]+?)\s+on\s/)||t.match(/Product type[^\n]*\n\s*([A-Z][A-Z &.]{3,50})/);m.name=x?x[1].trim():''}
+ x=t.match(/(?:a\/c|account)\s*(?:no|number|#)?\.?\s*[:\-]?\s*(\d{9,18})/i);m.acc=x?x[1]:'';const hd=t.split(/\n\s*(?:\d{1,4}\s+)?\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/)[0].slice(0,1500);x=BANKS.find(b=>new RegExp(b,'i').test(hd))||(/Within ICICI Bank|ICICI Bank Limited/i.test(t)?'ICICI':'');m.bank=x||'';
  x=t.match(/opening\s*balance[^\d\-]{0,15}(-?[\d,]+\.\d{2})/i);m.open=x?num(x[1]):null;return m}
 const OCRP={workerPath:'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',corePath:'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1',langPath:'https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng/4.0.0_best_int'};
 async function ocrCanvases(get,n){if(!window.Tesseract)throw new Error('OCR engine could not load. OCR needs internet access to cdn.jsdelivr.net – check the laptop network / proxy.');
@@ -80,22 +80,32 @@ async function readPdf(buf){const pdf=await pdfjsLib.getDocument({data:buf}).pro
   Object.keys(by).sort((a,b)=>b-a).forEach(y=>lines.push(by[y].sort((a,b)=>a[0]-b[0]).map(a=>a[1]).join('  ')))}
  let txt=lines.join('\n'),scan=false;if(txt.replace(/\s/g,'').length<200){scan=true;lines.length=0;lines.push(...await ocrCanvases(pdfCanvas(pdf),pdf.numPages));txt=lines.join('\n')}
  meta=getMeta(txt.slice(0,3000)+'\n'+txt);meta.pdf=md;meta.scan=scan;return parseLines(lines)}
-function parseLines(lines){const DRX=/^\s*(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{1,2}[\/\- ][A-Za-z]{3}[\/\- ,]*\d{2,4})/,NRX=/(?<![\w.])(-?(?:\d{1,3}(?:,\d{2,3})+|\d+)\.\d{2})(?!\d)(?:\s*(Dr|Cr)\b)?/gi;
- const accs={},blocks=[];let acc='',cur=null,last=null;const get=a=>accs[a]=accs[a]||{acc:a,dp:0};
+function parseLines(lines){const DRX=/^\s*(?:\d{1,4}\s+)?(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{1,2}[\/\- ][A-Za-z]{3}[\/\- ,]*\d{2,4})/,NRX=/(?<![\w.])(\(?[-+]?(?:\d{1,3}(?:,\d{2,3})+|\d+)\.\d{2}\)?)(?!\d)(?:\s*\(?(Dr|Cr)\)?(?![A-Za-z]))?/gi;
+ const accs={},blocks=[];let acc='',cur=null,last=null,pend=0;const get=a=>accs[a]=accs[a]||{acc:a,dp:0};
+ const sgn=t=>/^\(|^-/.test(t)?-1:1,vv=t=>Math.abs(num(t.replace(/[()+-]/g,'')));
+ const fill=(r,ns)=>{const b=ns[ns.length-1],bsf=(b[2]||'').toUpperCase();let bal=vv(b[1]);if(bsf=='DR'||sgn(b[1])<0)bal=-bal;r.bal=bal;r.sg=!!bsf||bal<0;
+  const c=ns.slice(0,-1).map(m=>({v:vv(m[1]),neg:sgn(m[1])<0||/^DR$/i.test(m[2]||''),cr:/^CR$/i.test(m[2]||'')})),nz=c.filter(x=>x.v>0);
+  r.amt=nz.length?nz[0].v:0;if(nz.length>1)r.cands=nz.map(x=>x.v);const x=nz[0];
+  if(x){if(x.neg)r.dr=true;else if(x.cr)r.dr=false;else if(c.length>=2&&nz.length==1)r.dr=c.indexOf(x)<c.length-1}};
  for(const l of lines){let m=l.match(/Account\s*Number\s*:\s*(\d{6,18})/i);if(m){acc=m[1];cur={acc,rows:[]};blocks.push(cur);get(acc);last=null;continue}
   m=l.match(/Drawing\s*Power\s*:\s*([\d,.]+)/i);if(m){if(acc)get(acc).dp=num(m[1]);continue}
+  m=l.match(/Account\s*Type\s*:\s*([A-Za-z ]+)/i);if(m){if(acc)get(acc).type=m[1].trim();continue}
+  m=l.match(/(?:Sanctioned\s*)?Limit\s*:\s*([\d,.]+)/i);if(m&&acc){get(acc).lim=num(m[1]);continue}
   const d=l.match(DRX);
-  if(d){const ns=[...l.matchAll(NRX)];if(ns.length<2){last=null;continue}const dt=pdt(d[1]);if(!dt)continue;
-   const bm=ns[ns.length-1],am=ns[ns.length-2];let bal=num(bm[1]);const sf=(bm[2]||'').toUpperCase();if(sf=='DR')bal=-Math.abs(bal);
-   const n=l.replace(DRX,'').replace(NRX,'').replace(/\b\d{1,2}\/\d{1,2}\/\d{4}\b/,'').replace(/\s+/g,' ').trim();
+  if(d){const dt=pdt(d[1]);if(!dt)continue;const ns=[...l.matchAll(NRX)];
+   const n=l.replace(DRX,'').replace(NRX,'').replace(/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/,'').replace(/\s+/g,' ').trim();
+   if(ns.length<2&&last&&last.amt===undefined&&!n){last.n+=' '+l.trim();continue}
    if(!cur){cur={acc:'',rows:[]};blocks.push(cur)}
-   last={d:dt,n,amt:Math.abs(num(am[1])),bal,sg:!!sf};cur.rows.push(last)}
+   last={d:dt,n};cur.rows.push(last);pend=0;if(ns.length>=2)fill(last,ns)}
+  else if(last&&last.amt===undefined){const ns=[...l.matchAll(NRX)];
+   if(ns.length>=2){fill(last,ns);const t=l.replace(NRX,'').replace(/\s+/g,' ').trim();if(t&&t.length<110)last.n+=' '+t}
+   else if(++pend>10)last=null;else last.n+=' '+l.trim().slice(0,110)}
   else if(/bank|branch|:|@|statement|page|opening|closing/i.test(l))last=null;
   else if(last&&!/\d\.\d{2}/.test(l)&&l.length<110)last.n+=' '+l.trim()}
  const res=[],seen={};
- blocks.forEach(b=>{if(b.rows.length>1&&b.rows[0].d>b.rows[b.rows.length-1].d)b.rows.reverse();
+ blocks.forEach(b=>{b.rows=b.rows.filter(r=>r.amt!==undefined);if(b.rows.length>1&&b.rows[0].d>b.rows[b.rows.length-1].d)b.rows.reverse();
   b.rows.forEach(r=>{r.acc=b.acc;const k=b.acc+'|'+r.d.getTime()+'|'+r.amt+'|'+r.bal+'|'+r.n.slice(0,15);if(!seen[k]){seen[k]=1;res.push(r)}})});
- meta.dps={};Object.values(accs).forEach(x=>meta.dps[x.acc]=x.dp);
+ meta.dps={};meta.types={};meta.lims={};Object.values(accs).forEach(x=>{meta.dps[x.acc]=x.dp;meta.types[x.acc]=x.type||'';meta.lims[x.acc]=x.lim||0});
  res.sort((x,y)=>x.acc<y.acc?-1:x.acc>y.acc?1:x.d-y.d);return chainOrder(res)}
 function chainOrder(R){const out=[];let i=0,cur=null,ac=null;
  while(i<R.length){let j=i;while(j<R.length&&R[j].acc===R[i].acc&&R[j].d.getTime()===R[i].d.getTime())j++;let g=R.slice(i,j);i=j;
@@ -104,22 +114,34 @@ function chainOrder(R){const out=[];let i=0,cur=null,ac=null;
  return out}
 async function readImg(f){const bm=await createImageBitmap(f),cv=document.createElement('canvas');cv.width=bm.width;cv.height=bm.height;cv.getContext('2d').drawImage(bm,0,0);
  const L=await ocrCanvases(async()=>cv,1);meta=getMeta(L.join('\n'));meta.scan=true;return parseLines(L)}
-function readSheet(buf){const wb=XLSX.read(buf,{type:'array',cellDates:true,raw:true}),a=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:''});
- meta=getMeta(a.slice(0,25).map(r=>r.join(' ')).join('\n'));
- const hi=a.findIndex(r=>r.some(c=>/date/i.test(c))&&r.some(c=>/balance/i.test(c)));if(hi<0)throw new Error('Could not find header row (Date / Balance columns).');
- const h=a[hi].map(String),f=re=>h.findIndex(c=>re.test(c)),ci={d:f(/date/i),n:f(/narr|desc|particular|remark|detail/i),w:f(/withdraw|debit|\bdr\b/i),c:f(/deposit|credit|\bcr\b/i),b:f(/balance/i)};
- const out=[];for(const r of a.slice(hi+1)){const dt=pdt(r[ci.d]);if(!dt)continue;const w=num(r[ci.w]),c=num(r[ci.c]);out.push({d:dt,n:String(r[ci.n]||''),amt:w||c,bal:num(r[ci.b]),dr:w>0?true:c>0?false:undefined})}return out}
-$('f').onchange=async e=>{const fs=[...e.target.files];if(!fs.length)return;ALL=[];FILES=[];DUP=0;let nm='',bk='',ac='',dps={},scan=false,errs=[],ok=0;
+function readSheet(buf){const wb=XLSX.read(buf,{type:'array',cellDates:true,raw:true}),out=[],dps={},tys={},lms={},tx=[];meta={dps,types:tys,lims:lms};
+ wb.SheetNames.forEach(sn=>{const a=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,raw:true,defval:''});let acc='',ci=null;
+  a.forEach((r,ix)=>{const line=r.join(' '),ne=r.filter(x=>String(x).trim()!=='').length;if(ix<40)tx.push(line);
+   if(ne<=3){let m=line.match(/Account\s*(?:No|Number)\.?\s*[:\-]?\s*(\d{6,18})/i);if(m){acc=m[1];ci=null;return}
+    m=line.match(/Drawing\s*Power\s*[:\-]?\s*([\d,.]+)/i);if(m){if(acc)dps[acc]=num(m[1]);return}
+    m=line.match(/Account\s*Type\s*[:\-]?\s*([A-Za-z ]+)/i);if(m){if(acc)tys[acc]=m[1].trim();return}
+    m=line.match(/(?:Sanctioned\s*)?Limit\s*[:\-]?\s*([\d,.]+)/i);if(m){if(acc)lms[acc]=num(m[1]);return}}
+   if(r.some(c=>/date/i.test(c))&&r.some(c=>/balance/i.test(c))){const h=r.map(String),f=(re,x)=>h.findIndex((c,i)=>re.test(c.trim())&&i!==x),t=f(/^(dr\s*\/\s*cr|cr\s*\/\s*dr|type|indicator|txn\s*type|d\s*\/\s*c)$/i);
+    ci={t,d:f(/date/i),n:f(/narr|desc|particular|remark|detail/i),w:f(/withdraw|debit|^dr\b/i,t),c:f(/deposit|credit|^cr\b/i,t),a:f(/^(txn\s*|transaction\s*)?(amount|amt)\b/i,t),b:f(/balance/i,t)};return}
+   if(!ci)return;const dt=pdt(r[ci.d]);if(!dt)return;const bs=String(r[ci.b]),tc=ci.t>=0?String(r[ci.t]).trim():'';
+   const sf=/\bdr\b/i.test(bs)?'DR':/\bcr\b/i.test(bs)?'CR':(ci.a<0&&ci.t>=0?(/^d/i.test(tc)?'DR':/^c/i.test(tc)?'CR':''):'');let bal=Math.abs(num(bs))*(num(bs)<0||sf=='DR'?-1:1);
+   let w=ci.w>=0?num(r[ci.w]):0,c=ci.c>=0&&ci.c!==ci.w?num(r[ci.c]):0,amt,dr;
+   if(ci.a>=0&&(ci.w<0||ci.c<0||ci.w===ci.c)){const v=num(r[ci.a]);amt=Math.abs(v);dr=ci.t>=0?(/^d/i.test(tc)?true:/^c/i.test(tc)?false:undefined):(v<0?true:undefined);if(v<0&&dr===undefined)dr=true}
+   else{amt=Math.abs(w)||Math.abs(c);dr=w!==0&&c===0?true:c!==0&&w===0?false:undefined}
+   out.push({d:dt,n:String(r[ci.n]||''),amt,bal,sg:!!sf||bal<0,acc,dr})})});
+ if(!out.length)throw new Error('Could not find header row (Date / Balance columns).');
+ const m=getMeta(tx.join('\n'));meta.name=m.name;meta.acc=m.acc;meta.bank=m.bank;meta.open=m.open;return out}
+$('f').onchange=async e=>{const fs=[...e.target.files];if(!fs.length)return;ALL=[];FILES=[];DUP=0;let nm='',bk='',ac='',dps={},tys={},lms={},scan=false,errs=[],ok=0;
  for(const f of fs){$('st').textContent='Reading '+f.name+' (file '+(fs.indexOf(f)+1)+' of '+fs.length+') …';
   try{const b=await f.arrayBuffer(),isP=/\.pdf$/i.test(f.name);meta={};let R=isP?await readPdf(b):/\.(png|jpe?g)$/i.test(f.name)?await readImg(f):readSheet(b);
-   if(R.length<2)throw new Error('no transactions found');if(!isP&&R[0].d>R[R.length-1].d)R.reverse();const m=meta;nm=nm||m.name;bk=bk||m.bank;ac=ac||m.acc;Object.assign(dps,m.dps||{});scan=scan||!!m.scan;
+   if(R.length<2)throw new Error('no transactions found');if(!isP){const g0={};R.forEach(r=>(g0[r.acc]=g0[r.acc]||[]).push(r));R=Object.values(g0).flatMap(x=>x.length>1&&x[0].d>x[x.length-1].d?x.reverse():x)}const m=meta;nm=nm||m.name;bk=bk||m.bank;ac=ac||m.acc;Object.assign(dps,m.dps||{});Object.assign(tys,m.types||{});Object.assign(lms,m.lims||{});scan=scan||!!m.scan;
    const g={};R.forEach(r=>{r.acc=r.acc||m.acc||'';r.file=f.name;(g[r.acc]=g[r.acc]||[]).push(r)});
    Object.keys(g).forEach(k=>{const t=g[k].map(r=>+r.d);FILES.push({name:f.name,acc:k,from:Math.min(...t),to:Math.max(...t),n:g[k].length})});ALL.push(...R);ok++}
   catch(x){errs.push(f.name+': '+x.message)}}
  if(ALL.length<3){$('st').innerHTML='<span style="color:var(--bd)">'+E(errs.join(' | ')||'Could not read transactions.')+'</span>';return}
  const seen={},U=[];ALL.forEach(r=>{const k=r.acc+'|'+r.d.getTime()+'|'+r.amt+'|'+r.bal+'|'+r.n.slice(0,15);if(seen[k])DUP++;else{seen[k]=1;U.push(r)}});
  U.sort((x,y)=>x.acc<y.acc?-1:x.acc>y.acc?1:x.d-y.d);ALL=chainOrder(U);
- meta={name:nm,bank:bk,acc:ac,dps,scan,file:fs.map(f=>f.name).join(', ')};$('cn').value=nm||'';$('bn').value=bk||'';fillAccts();
+ meta={name:nm,bank:bk,acc:ac,dps,types:tys,lims:lms,scan,file:fs.map(f=>f.name).join(', ')};$('cn').value=nm||'';$('bn').value=bk||'';fillAccts();
  $('st').innerHTML='✔ '+ok+' of '+fs.length+' file(s) merged'+(errs.length?'<br><span style="color:var(--bd)">Could not read: '+E(errs.join(' | '))+'</span>':'');$('val').classList.remove('hide');$('out').classList.add('hide')};
 let FILES=[],DUP=0,COV=null;
 function getCov(k){const R=ALL.filter(r=>r.acc===k),F=FILES.filter(f=>f.acc===k).sort((a,b)=>a.from-b.from),gaps=[],D=864e5;let end=null;
@@ -138,19 +160,19 @@ function fillAccts(){const g={};ALL.forEach(r=>(g[r.acc]=g[r.acc]||[]).push(r));
 function pick(k){rows=ALL.filter(r=>r.acc===k);const t=rows.map(r=>+r.d),dp=(meta.dps||{})[k]||0,neg=rows.some(r=>r.sg&&r.bal<0);$('an').value=k||meta.acc||'';
  $('pf').value=ds(new Date(Math.min(...t)));$('pt').value=ds(new Date(Math.max(...t)));const age=Math.floor((Date.now()-Math.max(...t))/864e5);
  $('stale').innerHTML=age>15?'<div class="warn">⚠ Statement is <b>'+age+' days old</b> (more than 15 days) – flagged for the aged-statement division.</div>':'';
- const cc=dp>0&&neg;if(cc||neg)$('ty').value=cc?'CC':'Current';$('ty').onchange();$('lm').value=cc?dp:'';$('dp').value=cc?dp:'';
- COV=getCov(k);$('cov').innerHTML='<h3>Statement coverage – '+(k||'account')+'</h3>'+covHTML(COV);$('cnt').textContent=rows.length+' transactions in this account ('+ALL.length+' in all files)'}
+ const tp=(meta.types||{})[k]||'',lmv=(meta.lims||{})[k]||dp,ty=/cash\s*credit|\bcc\b/i.test(tp)?'CC':/overdraft|\bod\b/i.test(tp)?'OD':/current/i.test(tp)?'Current':/saving/i.test(tp)?'Savings':(dp>0&&neg?'CC':neg?'Current':$('ty').value);$('ty').value=ty;$('ty').onchange();const odx=/OD|CC/.test(ty);$('lm').value=odx?lmv:'';$('dp').value=odx?(dp||lmv):'';
+ COV=getCov(k);const bad=COV.cont.length/Math.max(1,rows.length);$('cov').innerHTML=(bad>0.05?'<div class="warn">⚠ Only '+Math.round((1-bad)*100)+'% of rows reconcile with the running balance. This statement layout may not be read correctly – please verify against the original.</div>':'')+'<h3>Statement coverage – '+(k||'account')+'</h3>'+covHTML(COV);$('cnt').textContent=rows.length+' transactions in this account ('+ALL.length+' in all files)'}
 $('ac').onchange=()=>pick($('ac').value);
 $('ty').onchange=()=>document.querySelectorAll('.od').forEach(e=>e.classList.toggle('hide',!/OD|CC/.test($('ty').value)));
 const RX={stock:/ZERODHA|GROWW|UPSTOX|ANGEL ?(ONE|BROK)|\bNSE\b|\bBSE\b|ICCL|NSCCL|5PAISA|SHAREKHAN|MOTILAL|SECURITIES|BROKING|DEMAT/i,legal:/ADVOCATE|LAW |LEGAL|COURT|ATTORNEY|SOLICITOR|\bADV\b|ADVOCATES/i,life:/LIQUOR|WINE|\bBAR\b|\bPUB\b|DISCO|BREWER|BEER|LOUNGE|TASMAC|NIGHT ?CLUB|PARTY/i,ecom:/RAZORPAY|PAYU|CASHFREE|PAYTM|AMAZON|FLIPKART|BILLDESK|INSTAMOJO|CCAVENUE|SWIGGY|ZOMATO|PHONEPE|MEESHO|SETTLEMENT/i,
-sal:/SALARY|\bSAL\b|PAYROLL|WAGES/i,emi:/EMI|ECS|NACH|ACH D|ENACH|LOAN|FINANCE|FINSERV|FIN LTD|CAPITAL|HOUSING|BAJAJ|CHOLA|MUTHOOT|MANAPPURAM|HDB|L&T/i,bnc:/RTN|RETURN|BOUNCE|BNCD|DISHON|UNPAID|INSUFF|NO FUNDS|\bRET\b/i,
+sal:/SALARY|\bSAL\b|PAYROLL|WAGES/i,emi:/EMI|ECS|NACH|\bACH\b|ENACH|LOAN|FINANCE|FINSERV|FIN LTD|CAPITAL|HOUSING|BAJAJ|CHOLA|MUTHOOT|MANAPPURAM|HDB|L&T/i,bnc:/RTN|RETURN|BOUNCE|BNCD|DISHON|UNPAID|INSUFF|NO FUNDS|\bRET\b/i,
 chg:/CHG|CHARGE|FEE|SMS|AMC|GST|PENAL|COMMISSION/i,bchg:/(RTN|RETURN|BOUNCE|DISHON|INSUFF|RET).*(CHG|CHARGE|FEE|PENAL)|(CHG|CHARGE|FEE).*(RTN|RETURN|BOUNCE|INSUFF)/i,emib:/ECS|NACH|ACH|EMI|MANDATE|LOAN/i,insf:/INSUFF|FUND|NSF/i};
 const mode=n=>/UPI/i.test(n)?'UPI':/NEFT/i.test(n)?'NEFT':/IMPS/i.test(n)?'IMPS':/RTGS/i.test(n)?'RTGS':/CASH|ATM|CSH/i.test(n)?'Cash':/CHQ|CHEQUE|CLG|CLEARING/i.test(n)?'Cheque':'Other';
-const lender=n=>n.toUpperCase().replace(/[^A-Z ]/g,' ').replace(/\b(ACH|ECS|NACH|DR|DEBIT|EMI|LOAN|TO|BY|IN|NO|UTR|REF)\b/g,' ').trim().split(/\s+/).slice(0,2).join(' ')||'EMI';
+const lender=n=>{const k=n.toUpperCase().replace(/[^A-Z ]/g,' ').replace(/\b(ACH|ECS|NACH|DR|DEBIT|EMI|LOAN|TO|BY|IN|NO|UTR|REF)\b/g,' ').trim().split(/\s+/).slice(0,2).join(' ')||'EMI',m=n.match(/[A-Z]{4}0\d{8,}/i);return m?k+' …'+m[0].slice(-5):k};
 const sum=a=>a.reduce((s,x)=>s+x,0),topN=(a,k)=>[...a].sort((x,y)=>y.amt-x.amt).slice(0,5);
 function analyse(){const c=cfg,od=/OD|CC/.test(c.type),lim=Math.min(c.lim||0,c.dp||c.lim||0);
  let prev=rows[0].acc?null:meta.open,issues=[],breaks=0,nochg=0,order=0;
- rows.forEach((r,i)=>{r.f=[];if(prev!=null){const dl=r.bal-prev;if(r.dr===undefined)r.dr=dl<0;if(Math.abs(Math.abs(dl)-r.amt)>1){if(Math.abs(dl)<1)nochg++;r.f.push(Math.abs(dl)<1?'Debit/credit with no balance change':'Running balance break');breaks++}}
+ rows.forEach((r,i)=>{r.f=[];if(prev!=null){const dl=r.bal-prev;if(r.cands&&r.cands.length>1){const k=r.cands.find(v=>Math.abs(Math.abs(dl)-v)<=1.01);if(k!=null)r.amt=k}if(Math.abs(Math.abs(dl)-r.amt)<=1.01)r.dr=dl<0;else if(r.dr===undefined)r.dr=dl<0;if(Math.abs(Math.abs(dl)-r.amt)>1){if(Math.abs(dl)<1)nochg++;r.f.push(Math.abs(dl)<1?'Debit/credit with no balance change':'Running balance break');breaks++}}
   else if(r.dr===undefined)r.dr=!/\bCR\b|DEP|SALARY|INT\.?PD|BY |REFUND|INTEREST ?(PAID|CREDIT)/i.test(r.n);
   prev=r.bal;if(i&&r.d<rows[i-1].d){order++;r.f.push('Date out of sequence')}
   r.mode=mode(r.n);r.m=mk(r.d);const n=r.n;r.t={};for(const k in RX)r.t[k]=RX[k].test(n);
