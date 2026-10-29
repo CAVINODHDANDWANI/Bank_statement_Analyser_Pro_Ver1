@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Bank Statement Analyser PRO – by CA Vinod H Dandwani</title>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Bank_statement_Analyser_Pro_Ver1 – by CA Vinod H Dandwani</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -37,8 +37,8 @@ td{padding:9px 12px;border-bottom:1px solid var(--ln)}tbody tr:nth-child(even) t
 li{margin:6px 0}p{margin:8px 0}
 footer{text-align:center;padding:26px 20px 36px;color:var(--mu);font-size:14px;border-top:1px solid var(--ln);max-width:1280px;margin:auto;line-height:1.7}footer b{color:var(--pr)}
 @media print{header,footer,.kpi{-webkit-print-color-adjust:exact;print-color-adjust:exact}button,.drop,#val,#up{display:none}.card{box-shadow:none;break-inside:avoid}}
-</style></head><body>
-<header><div class="hw"><div><div class="eyebrow">CREDIT UNDERWRITING TOOLKIT</div><h1>Bank Statement Analyser <span class="pro">PRO</span></h1><p class="sub">by CA Vinod H Dandwani</p></div><div class="hn">🔒 All processing happens inside your browser – no statement data is uploaded</div></div></header>
+.g3{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));margin-top:14px}.cc{border:1px solid var(--ln);border-radius:10px;padding:12px}.cc h3{margin:0 0 6px;font-size:15px;text-align:center}.ins{background:rgba(201,162,39,.16);border-left:5px solid #c9a227;padding:10px 14px;margin:14px 0 0;font-weight:600;border-radius:6px}.tp h3{margin:0 0 6px;padding:6px 10px;background:rgba(42,107,82,.12);color:#2a6b52;font-size:14px;letter-spacing:.4px;text-transform:uppercase}.tp ul{margin:0;padding-left:18px;font-size:14px}.fn{font-size:12.5px;color:var(--mu);margin-top:12px}.banking-review .grid{grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}.banking-review .kpi{padding:10px}.banking-review .kpi b{font-size:21px}.banking-review .g3{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.banking-review .tp{font-size:12px}@media(max-width:800px){.banking-review .grid{grid-template-columns:repeat(3,minmax(0,1fr))}.banking-review .g3{grid-template-columns:1fr}}</style></head><body>
+<header><div class="hw"><div><div class="eyebrow">CREDIT UNDERWRITING TOOLKIT · VERSION 1</div><h1>Bank Statement Analyser <span class="pro">PRO</span></h1><p class="sub">by CA Vinod H Dandwani</p></div><div class="hn">🔒 All processing happens inside your browser – no statement data is uploaded</div></div></header>
 <main>
 <div class="card" id="up"><h2>1. Upload statement</h2><div class="drop"><p>PDF (text or scanned), Excel, CSV or photo/scan image – <b>select several files together</b> (monthly / quarterly / multiple accounts); they are merged, sorted and checked for missing periods</p><input type="file" id="f" multiple accept=".pdf,.xlsx,.xls,.csv,.png,.jpg,.jpeg"><p id="st" style="color:var(--mu)"></p></div></div>
 <div class="card hide" id="val"><h2>2. Validate details</h2><div id="acw" class="hide" style="margin-bottom:10px"><label>Several accounts found in this file – choose the one to analyse</label><select id="ac"></select></div><div class="grid">
@@ -49,11 +49,11 @@ footer{text-align:center;padding:26px 20px 36px;color:var(--mu);font-size:14px;b
 <div><label>Proposed EMI ₹</label><input id="em" type="number" value="0"></div></div>
 <div id="cov"></div><div id="stale"></div><p><button id="go">Confirm &amp; Analyse</button> <span id="cnt" style="color:var(--mu)"></span></p></div>
 <div id="out" class="hide"></div>
-<div class="card"><h2>Control sheet – analyses done on this laptop</h2><div class="tw" id="log"></div><p><button class="s" id="dl">Download control sheet (CSV)</button></p></div>
+<div class="card"><p><b>Reviewed Axis parser edition • 29 October 2026.</b> Axis column alignment, opening balance, declared-period daily average and third-party keyword matching corrected. Other bank layouts and automated risk labels require separate validation.</p></div><div class="card"><h2>Control sheet – analyses done on this laptop</h2><div class="tw" id="log"></div><p><button class="s" id="dl">Download control sheet (CSV)</button></p></div>
 </main><footer><b>Bank Statement Analyser PRO</b> · by <b>CA Vinod H Dandwani</b> · AICA Level 2 Capstone Project<br>Analysis is system-generated from the statements provided; verify figures against source documents before any credit decision.</footer>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-Chart.defaults.font.size=14;Chart.defaults.font.family='Segoe UI,Arial,sans-serif';
+Chart.defaults.font.size=14;Chart.defaults.maintainAspectRatio=false;Chart.defaults.font.family='Segoe UI,Arial,sans-serif';
 const $=id=>document.getElementById(id),E=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const fm=n=>(n<0?'-':'')+'₹'+Math.round(Math.abs(n)).toLocaleString('en-IN'),ds=d=>d.toLocaleDateString('en-GB'),mk=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
 const MON={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
@@ -73,13 +73,45 @@ async function ocrCanvases(get,n){if(!window.Tesseract)throw new Error('OCR engi
  for(let i=1;i<=n;i++){$('st').textContent='OCR scanning page '+i+' of '+n+' …';const r=await w.recognize(await get(i));L.push(...r.data.text.split('\n').map(x=>x.replace(/(\d),\s+(\d{3})/g,'$1,$2').replace(/(\d)\s+\.\s*(\d{2})\b/g,'$1.$2').trim()).filter(Boolean))}
  await w.terminate();return L}
 const pdfCanvas=pdf=>async i=>{const pg=await pdf.getPage(i),vp=pg.getViewport({scale:2.5}),cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;await pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;return cv};
-async function readPdf(buf){const pdf=await pdfjsLib.getDocument({data:buf}).promise,lines=[];let md={};
+
+// Axis coordinate parser: transaction anchors retain amount/date/narration alignment.
+function readAxisColumns(pages){
+ const text=pages.flat().map(i=>i.str).join(' ');
+ if(!/Statement of Axis Bank Account No\s*:/i.test(text))return null;
+ const account=text.match(/Statement of Axis Bank Account No\s*:\s*(\d+)/i)?.[1];
+ const opening=text.match(/Opening Balance:\s*INR\s*([\d,]+\.\d{2})/i);
+ const period=text.match(/From\s*:\s*(\d{2}\/\d{2}\/\d{4})\s*To\s*:\s*(\d{2}\/\d{2}\/\d{4})/i);
+ if(!account||!opening||!period)throw Error('Axis statement header incomplete; review source.');
+ const out=[];let expected=1,previous=num(opening[1]);
+ for(let p=0;p<pages.length;p++){
+  const items=pages[p],anchors=items.filter(i=>Math.abs(i.transform[4]-15)<.2&&/^\d+$/.test(i.str)).sort((a,b)=>b.transform[5]-a.transform[5]);
+  for(let z=0;z<anchors.length;z++){
+   const anchor=anchors[z],y=anchor.transform[5],seq=+anchor.str;
+   const dates=items.filter(j=>j.transform[4]>40&&j.transform[4]<44&&Math.abs(j.transform[5]-y)<.2&&/^\d{2}\/\d{2}\/\d{4}$/.test(j.str));
+   if(!dates.length)continue; // excludes the final transaction-total serial
+   const vals=items.filter(j=>Math.abs(j.transform[5]-y)<=9&&/^[\d,]+\.\d{2}$/.test(j.str)&&j.transform[4]>260&&j.transform[4]<445);
+   const debit=vals.filter(j=>j.transform[4]<310),credit=vals.filter(j=>j.transform[4]>=310&&j.transform[4]<360),balance=vals.filter(j=>j.transform[4]>=360);
+   if(seq!==expected||balance.length!==1||debit.length+credit.length!==1)throw Error('Unsupported Axis table layout at row '+seq+'; review source.');
+   const top=z?(anchors[z-1].transform[5]+y)/2:y+12,bottom=z+1<anchors.length?(anchors[z+1].transform[5]+y)/2:y-12;
+   const n=items.filter(j=>j.transform[4]>=144&&j.transform[4]<260&&j.transform[5]>bottom&&j.transform[5]<=top&&j.str.trim()).sort((a,b)=>b.transform[5]-a.transform[5]||a.transform[4]-b.transform[4]).map(j=>j.str).join(' ');
+   const amt=num((debit[0]||credit[0]).str),bal=num(balance[0].str),dr=!!debit.length;
+   if(Math.abs(Math.round(previous*100)+Math.round((dr?-amt:amt)*100)-Math.round(bal*100))>0)throw Error('Axis source reconciliation failed at row '+seq);
+   out.push({d:pdt(dates[0].str),n,amt,bal,dr,acc:account,sourcePage:p+1,sourceSeq:seq});previous=bal;expected++;
+  }
+ }
+ if(!out.length)throw Error('No Axis transaction rows found.');
+ out[0].ob=num(opening[1]);out[0].coverageStart=pdt(period[1]);out[0].coverageEnd=pdt(period[2]);
+ meta.name=pages[0].find(i=>Math.abs(i.transform[4]-12)<.2&&i.transform[5]>690&&/PRIVATE LIMITED|LIMITED|PVT/i.test(i.str))?.str||meta.name;
+ return out;
+}
+
+async function readPdf(buf){const pdf=await pdfjsLib.getDocument({data:buf}).promise,lines=[],pages=[];let md={};
  try{md=(await pdf.getMetadata()).info||{}}catch(e){}
- for(let p=1;p<=pdf.numPages;p++){const tc=await(await pdf.getPage(p)).getTextContent(),by={};
+ for(let p=1;p<=pdf.numPages;p++){const tc=await(await pdf.getPage(p)).getTextContent(),by={};pages.push(tc.items);
   tc.items.forEach(i=>{if(!i.str.trim())return;const y=Math.round(i.transform[5]/3);(by[y]=by[y]||[]).push([i.transform[4],i.str])});
   Object.keys(by).sort((a,b)=>b-a).forEach(y=>lines.push(by[y].sort((a,b)=>a[0]-b[0]).map(a=>a[1]).join('  ')))}
  let txt=lines.join('\n'),scan=false;if(txt.replace(/\s/g,'').length<200){scan=true;lines.length=0;lines.push(...await ocrCanvases(pdfCanvas(pdf),pdf.numPages));txt=lines.join('\n')}
- meta=getMeta(txt.slice(0,3000)+'\n'+txt);meta.pdf=md;meta.scan=scan;return parseLines(lines)}
+ meta=getMeta(txt.slice(0,3000)+'\n'+txt);meta.pdf=md;meta.scan=scan;return readAxisColumns(pages)||parseLines(lines)}
 function parseLines(lines){const DRX=/^\s*(?:\d{1,4}\s+)?(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{1,2}[\/\- ]?[A-Za-z]{3}[\/\- ,]*\d{2,4})/,NRX=/(?<![\w.])(\(?[-+]?(?:\d{1,3}(?:,\d{2,3})+|\d+)\.\d{2}\)?)(?!\d)(?:\s*\(?(Dr|Cr)\)?(?![A-Za-z]))?/gi;
  const isH=l=>/\bdate\b/i.test(l)&&/balance/i.test(l)&&/(withdraw|debit|deposit|credit|amount|\bdr\b|\bcr\b)/i.test(l),gate=lines.some(isH),EX=/\b(transaction turnover|grand total|total|closing balance|opening balance|brought forward|carried forward|sub-?total)\b/i;
  const accs={},blocks=[];let acc='',cur=null,last=null,pend=0,inT=!gate,ld=null,buf=[];const get=a=>accs[a]=accs[a]||{acc:a,dp:0};
@@ -171,9 +203,9 @@ function pick(k){rows=ALL.filter(r=>r.acc===k);const t=rows.map(r=>+r.d),dp=(met
  COV=getCov(k);const bad=COV.cont.length/Math.max(1,rows.length);$('cov').innerHTML=(bad>0.05?'<div class="warn">⚠ Only '+Math.round((1-bad)*100)+'% of rows reconcile with the running balance. This statement layout may not be read correctly – please verify against the original.</div>':'')+'<h3>Statement coverage – '+(k||'account')+'</h3>'+covHTML(COV);$('cnt').textContent=rows.length+' transactions in this account ('+ALL.length+' in all files)'}
 $('ac').onchange=()=>pick($('ac').value);
 $('ty').onchange=()=>document.querySelectorAll('.od').forEach(e=>e.classList.toggle('hide',!/OD|CC/.test($('ty').value)));
-const RX={stock:/ZERODHA|GROWW|UPSTOX|ANGEL ?(ONE|BROK)|\bNSE\b|\bBSE\b|ICCL|NSCCL|5PAISA|SHAREKHAN|MOTILAL|SECURITIES|BROKING|DEMAT/i,legal:/ADVOCATE|LAW |LEGAL|COURT|ATTORNEY|SOLICITOR|\bADV\b|ADVOCATES/i,life:/LIQUOR|WINE|\bBAR\b|\bPUB\b|DISCO|BREWER|BEER|LOUNGE|TASMAC|NIGHT ?CLUB|PARTY/i,ecom:/RAZORPAY|PAYU|CASHFREE|PAYTM|AMAZON|FLIPKART|BILLDESK|INSTAMOJO|CCAVENUE|SWIGGY|ZOMATO|PHONEPE|MEESHO|SETTLEMENT/i,
+const RX={stock:/ZERODHA|GROWW|UPSTOX|ANGEL ?(ONE|BROK)|\bNSE\b|\bBSE\b|ICCL|NSCCL|5PAISA|SHAREKHAN|MOTILAL|SECURITIES|BROKING|DEMAT/i,legal:/ADVOCATE|LAW |LEGAL|COURT|ATTORNEY|SOLICITOR|\bADV\b|ADVOCATES/i,life:/LIQUOR|WINE|\bBAR\b|\bPUB\b|DISCO|BREWER|BEER|LOUNGE|TASMAC|NIGHT ?CLUB|\bPARTY\b/i,ecom:/RAZORPAY|PAYU|CASHFREE|PAYTM|AMAZON|FLIPKART|BILLDESK|INSTAMOJO|CCAVENUE|SWIGGY|ZOMATO|PHONEPE|MEESHO|SETTLEMENT/i,
 sal:/SALARY|\bSAL\b|PAYROLL|WAGES/i,emi:/EMI|ECS|NACH|\bACH\b|ENACH|LOAN|FINANCE|FINSERV|FIN LTD|CAPITAL|HOUSING|BAJAJ|CHOLA|MUTHOOT|MANAPPURAM|HDB|L&T/i,bnc:/RTN|RETURN|BOUNCE|BNCD|DISHON|UNPAID|INSUFF|NO FUNDS|\bRET\b/i,
-chg:/CHG|CHARGE|FEE|SMS|AMC|GST|PENAL|COMMISSION/i,bchg:/(RTN|RETURN|BOUNCE|DISHON|INSUFF|RET).*(CHG|CHARGE|FEE|PENAL)|(CHG|CHARGE|FEE).*(RTN|RETURN|BOUNCE|INSUFF)/i,emib:/ECS|NACH|ACH|EMI|MANDATE|LOAN/i,insf:/INSUFF|FUND|NSF/i};
+chg:/CHG|CHARGE|FEE|SMS|AMC|GST|PENAL|COMMISSION/i,bchg:/(?:CHQ|CHEQUE).*RTN.*CHRGS|(?:GST).*RTN.*CHRGS|(RTN|RETURN|BOUNCE|DISHON|INSUFF|RET).*(CHG|CHARGE|FEE|PENAL)|(CHG|CHARGE|FEE).*(RTN|RETURN|BOUNCE|INSUFF)/i,emib:/ECS|NACH|ACH|EMI|MANDATE|LOAN/i,insf:/INSUFF|FUND|NSF/i};
 const mode=n=>/UPI/i.test(n)?'UPI':/NEFT/i.test(n)?'NEFT':/IMPS/i.test(n)?'IMPS':/RTGS/i.test(n)?'RTGS':/CASH|ATM|CSH/i.test(n)?'Cash':/CHQ|CHEQUE|CLG|CLEARING/i.test(n)?'Cheque':'Other';
 const lender=n=>{const k=n.toUpperCase().replace(/[^A-Z ]/g,' ').replace(/\b(ACH|ECS|NACH|DR|DEBIT|EMI|LOAN|TO|BY|IN|NO|UTR|REF)\b/g,' ').trim().split(/\s+/).slice(0,2).join(' ')||'EMI',m=n.match(/[A-Z]{4}0\d{8,}/i);return m?k+' …'+m[0].slice(-5):k};
 const sum=a=>a.reduce((s,x)=>s+x,0),topN=(a,k)=>[...a].sort((x,y)=>y.amt-x.amt).slice(0,5);
@@ -183,13 +215,13 @@ function analyse(){const c=cfg,od=/OD|CC/.test(c.type),lim=Math.min(c.lim||0,c.d
   else if(r.dr===undefined)r.dr=!/\bCR\b|DEP|SALARY|INT\.?PD|BY |REFUND|INTEREST ?(PAID|CREDIT)/i.test(r.n);
   prev=r.bal;if(i&&r.d<rows[i-1].d){order++;r.f.push('Date out of sequence')}
   r.mode=mode(r.n);r.m=mk(r.d);const n=r.n;r.t={};for(const k in RX)r.t[k]=RX[k].test(n);
-  r.bounce=r.t.bnc&&!r.t.bchg;r.emib=r.bounce&&r.t.emib;r.cb=r.bounce&&!r.emib;r.chg=r.dr&&r.t.chg&&!r.t.emi||r.t.bchg&&r.dr;
-  r.emi=r.dr&&r.t.emi&&!r.bounce&&!r.chg;r.loan=!r.dr&&r.t.emi&&!/REV|REFUND|RETURN/i.test(n)&&r.amt>=50000;r.sal=!r.dr&&r.t.sal;
+  r.bounce=r.t.bnc&&!r.t.bchg&&(r.t.emib||/CHQ|CHEQUE|CLG|CLEARING/i.test(n));r.emib=r.bounce&&r.t.emib;r.cb=r.bounce&&!r.emib;r.chg=r.dr&&r.t.chg&&!r.t.emi||r.t.bchg&&r.dr;
+  r.emi=r.dr&&r.t.emi&&!r.bounce&&!r.chg;r.loan=!r.dr&&r.t.emi&&!/REV|REFUND|RETURN|LOAN\s*REPA/i.test(n)&&r.amt>=50000;r.sal=!r.dr&&r.t.sal;
   if(r.t.stock)r.f.push('Stock market');if(r.t.legal)r.f.push('Legal fees');if(r.t.life)r.f.push('Liquor/party');if(r.bounce)r.f.push(r.emib?'EMI bounce':'Cheque bounce')});
  const dr=rows.filter(r=>r.dr),cr=rows.filter(r=>!r.dr),ms=[...new Set(rows.map(r=>r.m))].sort(),mo={};
  ms.forEach(m=>{const a=rows.filter(r=>r.m==m);mo[m]={cr:sum(a.filter(r=>!r.dr).map(r=>r.amt)),dr:sum(a.filter(r=>r.dr).map(r=>r.amt)),ncr:a.filter(r=>!r.dr).length,ndr:a.filter(r=>r.dr).length,cb:a.filter(r=>r.cb).length,eb:a.filter(r=>r.emib).length,chg:sum(a.filter(r=>r.chg).map(r=>r.amt)),a}});
  const sgn=rows.some(r=>r.sg),eff=b=>od?(sgn?lim+b:lim-Math.abs(b)):b,day={};rows.forEach(r=>day[r.d.getTime()]=r.bal);
- const t0=rows.reduce((a,r)=>Math.min(a,r.d),1e15),t1=rows.reduce((a,r)=>Math.max(a,r.d),0),dly=[];let cur=rows[0].bal;
+ const t0=rows[0].coverageStart?+rows[0].coverageStart:rows.reduce((a,r)=>Math.min(a,r.d),1e15),t1=rows[0].coverageEnd?+rows[0].coverageEnd:rows.reduce((a,r)=>Math.max(a,r.d),0),dly=[];let cur=rows[0].ob!==undefined?rows[0].ob:rows[0].bal;
  for(let t=t0;t<=t1;t+=864e5){const k=Math.round(t);const d0=new Date(t);const key=new Date(d0.getFullYear(),d0.getMonth(),d0.getDate()).getTime();if(day[key]!=null)cur=day[key];dly.push([new Date(key),cur])}
  const abb=sum(dly.map(x=>eff(x[1])))/dly.length,balOn=dt=>{let b=null;for(const x of dly)if(x[0]<=dt)b=x[1];return b};
  const sel=[];ms.forEach(m=>[1,3,5,10,15].forEach(d=>{const dt=new Date(+m.slice(0,4),+m.slice(5)-1,d);if(dt>=dly[0][0]&&dt<=dly[dly.length-1][0])sel.push(eff(balOn(dt)))}));const abbSel=sel.length?sum(sel)/sel.length:0;
@@ -213,19 +245,30 @@ const flag=(a)=>a.length?'<span class="tag r">'+a.length+' found</span>':'<span 
 $('go').onclick=()=>{cfg={type:$('ty').value,lim:+$('lm').value,dp:+$('dp').value,emi:+$('em').value};
  if(/OD|CC/.test(cfg.type)&&!cfg.lim){alert('Please enter the sanctioned limit for OD/CC accounts.');return}
  meta.name=$('cn').value;meta.bank=$('bn').value;meta.acc=$('an').value;const A=last=analyse();render(A);log(A)};
-function render(A){charts.forEach(c=>c.destroy());charts=[];const rk=A.risk<25?['Low','ok']:A.risk<55?['Medium','wa']:['High','bd'],R=A.rows,M=A.ms,mo=A.mo;
- const act=A.age<=15?['ACTIVE','ok']:A.age<=45?['DORMANT?','wa']:['INACTIVE','bd'];
+function render(A){charts.forEach(c=>c.destroy());charts=[];exportChartConfigs=[];const rk=A.risk<25?['Low','ok']:A.risk<55?['Medium','wa']:['High','bd'],R=A.rows,M=A.ms,mo=A.mo;
+ const act=A.age<=15?['ACTIVE','ok']:A.age<=45?['STATEMENT AGED','wa']:['STATEMENT AGED','bd'];
  const K=(t,v,c)=>`<div class="kpi ${c||''}"><span>${t}</span><b>${v}</b></div>`,top5=(f)=>tb(['Date','Narration','Amount'],topN(R.filter(f)).map(r=>[ds(r.d),r.n.slice(0,60),fm(r.amt)]));
  const modes=['NEFT','UPI','IMPS','RTGS','Cash','Cheque','Other'],mm=(d)=>modes.map(m=>sum(R.filter(r=>r.dr==d&&r.mode==m).map(r=>r.amt)));
+const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],mn=m=>MN[+m.slice(5)-1]+(M.length>12?' '+m.slice(2,4):''),Lf=n=>'₹'+(n/1e5).toFixed(2)+' L',sF=f=>sum(R.filter(f).map(r=>r.amt)),big=f=>R.filter(f).sort((a,b)=>b.amt-a.amt)[0];
+ const cat=r=>r.loan?'Loan credit candidates':r.sal?'Salary / retainer':r.bounce?'Return reversals':r.t.ecom?'E-commerce':r.mode=='Cash'?'Cash deposits':'Trade / other receipts',CN=['E-commerce','Trade / other receipts','Salary / retainer','Loan credit candidates','Cash deposits','Return reversals'],cv=CN.map(c=>sF(r=>!r.dr&&cat(r)==c));
+ const mAvg=M.map(m=>{const a=A.dly.filter(x=>mk(x[0])==m).map(x=>A.eff(x[1]));return a.length?sum(a)/a.length:0}),mCl=M.map(m=>{const a=A.dly.filter(x=>mk(x[0])==m);return a.length?A.eff(a[a.length-1][1]):0});
+ const emD=M.map(m=>sum(R.filter(r=>r.m==m&&r.emi).map(r=>r.amt))),emR=M.map(m=>sum(R.filter(r=>r.m==m&&!r.dr&&r.emib).map(r=>r.amt))),stk=sF(r=>r.dr&&r.t.stock),leg=sF(r=>r.dr&&r.t.legal),liq=sF(r=>r.dr&&r.t.life);
+ const bc=big(r=>!r.dr),bd=big(r=>r.dr),mx=M.reduce((a,m)=>mo[m].dr>mo[a].dr?m:a,M[0]),clo=A.eff(A.dly[A.dly.length-1][1]),insf=A.cbs.concat(A.ebs).filter(r=>RX.insf.test(r.n)).length;
+ const RV=`<div class="card banking-review"><h2>Banking review</h2><p><b>${E(meta.name||'-')}</b> · ${E(meta.bank||'-')} · A/c ending ${E(meta.acc.slice(-4))} · ${ds(A.first)} to ${ds(A.last)}</p><div class="grid">${K('Total credits',Lf(A.tcr),'ok')}${K('Total debits',Lf(A.tdr))}${K('Net inflow',Lf(A.tcr-A.tdr))}${K('Daily avg balance',Lf(A.abb))}${K('Closing balance',Lf(clo))}${K('Return events ('+A.cbs.length+' cheque + '+A.ebs.length+' EMI)',A.cbs.length+A.ebs.length,A.cbs.length+A.ebs.length?'wa':'ok')}</div>
+ <div class="ins">Highest outflow: ${mn(mx)} ${Lf(mo[mx].dr)}${bd?' – largest debit '+Lf(bd.amt)+' ('+E(bd.n.slice(0,40))+')':''}.${bc?' Largest credit '+Lf(bc.amt)+' ('+E(bc.n.slice(0,40))+').':''}</div>
+ <div class="g3"><div class="cc"><h3>Monthly cash flows (₹ lakh)</h3><div style="position:relative;height:180px"><canvas id="r1"></canvas></div></div><div class="cc"><h3>Balance trend (₹ lakh)</h3><div style="position:relative;height:180px"><canvas id="r2"></canvas></div></div><div class="cc"><h3>Credit composition (₹ lakh)</h3><div style="position:relative;height:180px"><canvas id="r3"></canvas></div></div>
+ <div class="cc"><h3>Payment modes (₹ lakh)</h3><div style="position:relative;height:180px"><canvas id="r4"></canvas></div></div><div class="cc"><h3>EMI / lender keyword candidates &amp; reversals (₹ lakh)</h3><div style="position:relative;height:180px"><canvas id="r5"></canvas></div></div><div class="cc"><h3>Flagged outgoing payments (₹)</h3><div style="position:relative;height:180px"><canvas id="r6"></canvas></div></div></div>
+ <div class="g3 tp"><div><h3>Repayment &amp; verification</h3><ul><li>${A.ebs.length} EMI return(s) and ${A.cbs.length} cheque return(s).</li><li>Inward returns ${A.inP.toFixed(1)}% · outward ${A.outP.toFixed(1)}% of cheque debits.</li>${insf?'<li>'+insf+' return(s) cite insufficient funds – confirm with the bank.</li>':''}</ul></div>
+ <div><h3>Large transactions &amp; charges</h3><ul>${bc?'<li>Largest credit: '+Lf(bc.amt)+'</li>':''}${bd?'<li>Largest debit: '+Lf(bd.amt)+'</li>':''}<li>Bank and bounce charges: ${fm(sF(r=>r.chg))}</li><li>Net EMI cash outflow: ${Lf(sum(emD)-sum(emR))} over ${M.length} months</li></ul></div>
+ <div><h3>Source checks</h3><ul><li>${R.length} records · balance breaks ${A.breaks} · date errors ${A.order} · circular pairs ${A.cyc}</li><li>PDF-edit flag: ${A.edit?'YES':'none'} · fraud score ${A.risk}/100</li><li>Missing periods: ${COV.miss.length+COV.cont.length}</li></ul></div></div>
+ <p class="fn">Amounts are gross bank flows. Narration-based classifications do not establish income or financial risk. FINANCE in a beneficiary bank name can trigger an EMI candidate; confirm against a loan schedule. Return counts require explicit cheque/mandate evidence; generic UPI return narrations are excluded. Prepared by CA Vinod H Dandwani.</p></div>`;
  const ebRows=Object.keys(A.lg).map(k=>[k,...M.map(m=>A.lg[k][m]?fm(A.lg[k][m]):'-')]);
  const fl=(k,l)=>`<h3>${l} ${flag(R.filter(r=>r.t[k]))}</h3>`+tb(['Date','Narration','Amount'],R.filter(r=>r.t[k]).slice(0,25).map(r=>[ds(r.d),r.n.slice(0,70),fm(r.amt)]));
- $('out').innerHTML=`<div class="card"><h2>Customer summary</h2><p><b>${E(meta.name||'-')}</b> · ${E(meta.bank||'-')} · A/c ${E(meta.acc?meta.acc.slice(0,-4).replace(/\d/g,'X')+meta.acc.slice(-4):'-')} · ${cfg.type} · ${ds(A.first)} to ${ds(A.last)} <span class="tag ${act[1]=='ok'?'g':act[1]=='wa'?'y':'r'}">${act[0]}</span></p>
+ $('out').innerHTML=`${RV}<div class="card"><h2>Customer summary</h2><p><b>${E(meta.name||'-')}</b> · ${E(meta.bank||'-')} · A/c ${E(meta.acc?meta.acc.slice(0,-4).replace(/\d/g,'X')+meta.acc.slice(-4):'-')} · ${cfg.type} · ${ds(A.first)} to ${ds(A.last)} <span class="tag ${act[1]=='ok'?'g':act[1]=='wa'?'y':'r'}">${act[0]}</span></p>
  <div class="grid">${K('Average bank balance (daily)',fm(A.abb))}${K('ABB on 1,3,5,10,15',fm(A.abbSel))}${K('Total credits',fm(A.tcr),'ok')}${K('Total debits',fm(A.tdr))}${K('Debit / credit ratio',(A.tdr/(A.tcr||1)).toFixed(2))}${K('Cheque bounces',A.cbs.length,A.cbs.length?'wa':'ok')}${K('EMI bounces',A.ebs.length,A.ebs.length?'bd':'ok')}${K('Fraud risk score',A.risk+'/100 '+rk[0],rk[1])}${K('Missing periods',COV.miss.length+COV.cont.length,COV.miss.length+COV.cont.length?'bd':'ok')}${K('Deviations',A.dev.length,A.dev.length?'bd':'ok')}${A.od?K('OD/CC utilisation',A.util.toFixed(0)+'%',A.util>100?'bd':'ok'):''}</div>
  ${meta.scan?'<div class="warn">Scanned statement read with OCR – verify figures. Rows with balance breaks may be OCR misreads; check them against the original before treating them as fraud.</div>':''}${A.od&&A.util>100?'<p class="tag r" style="font-size:13px">OVERDRAWN – utilisation above sanctioned limit / drawing power</p>':''}</div>
  <div class="card"><h2>Statement coverage &amp; missing periods</h2>${covHTML(COV)}</div>
  <div class="card"><h2>Policy deviations</h2>${A.dev.length?'<ul>'+A.dev.map(d=>'<li><span class="tag r">Deviation</span> '+E(d)+'</li>').join('')+'</ul>':'<span class="tag g">No deviations triggered</span>'}</div>
- <div class="two"><div class="card"><h2>Monthly credits vs debits</h2><canvas id="c1"></canvas></div><div class="card"><h2>Balance trend (${A.od?'available limit':'closing balance'})</h2><canvas id="c2"></canvas></div>
- <div class="card"><h2>Credit modes</h2><canvas id="c3"></canvas></div><div class="card"><h2>Debit modes</h2><canvas id="c4"></canvas></div></div>
  <div class="card"><h2>Monthly analysis</h2>${tb(['Month','Credits','Debits','Dr/Cr ratio','# Cr','# Dr','Cheque bounces','Bounce % of debits','EMI bounces','Bank charges'],M.map(m=>[m,fm(mo[m].cr),fm(mo[m].dr),(mo[m].dr/(mo[m].cr||1)).toFixed(2),mo[m].ncr,mo[m].ndr,mo[m].cb,(mo[m].cb/(mo[m].ndr||1)*100).toFixed(1)+'%',mo[m].eb,fm(mo[m].chg)]))}</div>
  <div class="two"><div class="card"><h2>Top 5 credits</h2>${top5(r=>!r.dr)}</div><div class="card"><h2>Top 5 debits</h2>${top5(r=>r.dr)}</div></div>
  <div class="card"><h2>EMIs paid (lender-wise)</h2>${tb(['Lender',...M],ebRows)}<p>EMI debit-date suggestion (1/3/5/10/15 – balance on previous day ≥ proposed EMI): ${cfg.emi?'<b>'+A.cand[0].d+'th</b> is best ('+A.cand[0].cov.toFixed(0)+'% coverage). '+A.cand.map(c=>c.d+': '+c.cov.toFixed(0)+'%').join(' · '):'enter a proposed EMI to get the suggestion.'}</p>
@@ -234,17 +277,21 @@ function render(A){charts.forEach(c=>c.destroy());charts=[];const rk=A.risk<25?[
  <h3>Salary credits ${flag(R.filter(r=>r.sal))}</h3>${tb(['Date','Narration','Amount'],R.filter(r=>r.sal).map(r=>[ds(r.d),r.n.slice(0,70),fm(r.amt)]))}<h3>Loan disbursements ${flag(R.filter(r=>r.loan))}</h3>${tb(['Date','Narration','Amount'],R.filter(r=>r.loan).map(r=>[ds(r.d),r.n.slice(0,70),fm(r.amt)]))}</div>
  <div class="card"><h2>Fraud / FCU checks — risk ${A.risk}/100 (${rk[0]})</h2><ul><li>Running-balance breaks / debit without balance change: <b>${A.breaks}</b> (${A.nochg} with no balance change)</li><li>Dates out of sequence: <b>${A.order}</b></li><li>Round-figure circular credit-debit pairs: <b>${A.cyc}</b></li><li>PDF editing software detected: <b>${A.edit?'YES':'No'}</b></li></ul>
  ${tb(['Date','Narration','Amount','Issue'],R.filter(r=>r.f.some(x=>/break|change|sequence/.test(x))).slice(0,40).map(r=>[ds(r.d),r.n.slice(0,60),fm(r.amt),r.f.join(', ')]))}</div>
- <p><button id="xl">Download Excel workbook</button></p>`;
+ <p><button id="xl">Download Excel dashboard &amp; detailed analysis</button></p>`;
  $('out').classList.remove('hide');const L=M.map(m=>m);
- const ch=(id,cf)=>charts.push(new Chart($(id),cf));
- ch('c1',{type:'bar',data:{labels:M,datasets:[{label:'Credits',data:M.map(m=>mo[m].cr),backgroundColor:'#1a9d5b'},{label:'Debits',data:M.map(m=>mo[m].dr),backgroundColor:'#2f6fed'},{type:'line',label:'Dr/Cr ratio',data:M.map(m=>mo[m].dr/(mo[m].cr||1)),yAxisID:'y1',borderColor:'#e8a100'}]},options:{scales:{y1:{position:'right',grid:{drawOnChartArea:false}}}}});
- ch('c2',{type:'line',data:{labels:A.dly.map(x=>ds(x[0])),datasets:[{label:'Balance',data:A.dly.map(x=>A.eff(x[1])),borderColor:'#2f6fed',pointRadius:0,fill:true,backgroundColor:'rgba(47,111,237,.12)'}]}});
- const mc=['#2f6fed','#1a9d5b','#e8a100','#8e44ad','#d92b3a','#16a2b8','#888'];ch('c3',{type:'doughnut',data:{labels:modes,datasets:[{data:mm(false),backgroundColor:mc}]}});ch('c4',{type:'doughnut',data:{labels:modes,datasets:[{data:mm(true),backgroundColor:mc}]}});
+ const ch=(id,cf)=>{exportChartConfigs.push(cf);charts.push(new Chart($(id),cf))};
+ const G='#2a6b52',Y='#b38e4f',lk=a=>a.map(v=>+(v/1e5).toFixed(2)),ML=M.map(mn),nl={plugins:{legend:{display:false}}};
+ ch('r1',{type:'bar',data:{labels:ML,datasets:[{label:'Credits (L)',data:lk(M.map(m=>mo[m].cr)),backgroundColor:G},{label:'Debits (L)',data:lk(M.map(m=>mo[m].dr)),backgroundColor:Y}]}});
+ ch('r2',{type:'line',data:{labels:ML,datasets:[{label:'Daily avg (L)',data:lk(mAvg),borderColor:G,backgroundColor:G},{label:'Closing (L)',data:lk(mCl),borderColor:Y,backgroundColor:Y}]}});
+ ch('r3',{type:'bar',data:{labels:CN,datasets:[{data:lk(cv),backgroundColor:G}]},options:nl});
+ ch('r4',{type:'bar',data:{labels:modes,datasets:[{label:'Credits (L)',data:lk(mm(false)),backgroundColor:G},{label:'Debits (L)',data:lk(mm(true)),backgroundColor:Y}]}});
+ ch('r5',{type:'bar',data:{labels:ML,datasets:[{label:'Debit candidates (L)',data:lk(emD),backgroundColor:G},{label:'EMI reversals (L)',data:lk(emR),backgroundColor:Y}]}});
+ ch('r6',{type:'bar',data:{labels:['Stock market','Legal fees','Liquor / party'],datasets:[{data:[stk,leg,liq],backgroundColor:G}]},options:nl});
  $('xl').onclick=()=>exportXl(A,modes,mm);$('out').scrollIntoView({behavior:'smooth'})}
 async function sv(name,data){let d=null;try{d=window.claude&&await claude.use('downloads')}catch(e){}
  if(d){try{await d.save({filename:name,data})}catch(e){}return}const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data]));a.download=name;a.click()}
 async function exportXl(A,modes,mm){const R=A.rows,M=A.ms,mo=A.mo,wb=XLSX.utils.book_new(),add=(n,a)=>XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(a),n);
- add('Summary',[['Bank Statement Analyser PRO – by CA Vinod H Dandwani'],[],['Customer',meta.name],['Bank',meta.bank],['Account',meta.acc],['Type',cfg.type],['Period',ds(A.first)+' - '+ds(A.last)],['Statement age (days)',A.age],['Total credits',A.tcr],['Total debits',A.tdr],['Debit/credit ratio',A.tdr/(A.tcr||1)],['ABB (daily average)',A.abb],['ABB (1,3,5,10,15)',A.abbSel],['Utilisation %',A.util],['Cheque bounces',A.cbs.length],['EMI bounces',A.ebs.length],['Risk score',A.risk],['Deviations',A.dev.join(' | ')||'None']]);
+ add('Summary',dashboardRows(A));
  add('Statement Data',[['Date','Narration','Debit','Credit','Balance','Mode','Issues / flags'],...R.map(r=>[ds(r.d),r.n,r.dr?r.amt:'',r.dr?'':r.amt,r.bal,r.mode,r.f.join('; ')])]);
  add('Monthly Analysis',[['Month','Credits','Debits','Dr/Cr','# Cr','# Dr'],...M.map(m=>[m,mo[m].cr,mo[m].dr,mo[m].dr/(mo[m].cr||1),mo[m].ncr,mo[m].ndr])]);
  add('Top 5',[['Type','Month','Date','Narration','Amount'],...[false,true].flatMap(d=>['ALL',...M].flatMap(m=>topN(R.filter(r=>r.dr==d&&(m=='ALL'||r.m==m))).map(r=>[d?'Debit':'Credit',m,ds(r.d),r.n,r.amt])))]);
@@ -256,7 +303,77 @@ async function exportXl(A,modes,mm){const R=A.rows,M=A.ms,mo=A.mo,wb=XLSX.utils.
  add('Coverage',[['File','From','To','Transactions'],...COV.F.map(f=>[f.name,ds(new Date(f.from)),ds(new Date(f.to)),f.n]),[],['Gap type','From','To'],...COV.gaps.map(g=>[COV.miss.includes(g)?'MISSING (balances do not reconcile)':'Not covered (balances reconcile)',ds(g[0]),ds(g[1])]),[],['Balance discontinuity from','To','Unexplained amount'],...COV.cont.map(c=>[ds(c[0]),ds(c[1]),c[2]]),[],['Months with no transactions',COV.empty.join(', ')],['Duplicates removed',DUP]]);
  add('Deviations',[['Deviation'],...(A.dev.length?A.dev.map(d=>[d]):[['None']])]);
  add('Formulas',[['Metric','Formula'],['ABB daily','Sum of daily closing balances (carried forward) / days in period; OD/CC uses min(limit,DP) - |balance|'],['ABB dates','Average balance on 1,3,5,10,15 of each month'],['Dr/Cr ratio','Total debits / total credits'],['Utilisation %','Peak |balance| / limit x 100'],['Cheque bounce %','Bounced cheques / debits x 100'],['Inward % / Outward %','Returns / cheque debits (all debits if none); limits 4% / 5%'],['Running balance','prev balance +/- amount = current balance (tolerance Rs 1)'],['EMI date coverage','Months where previous-day balance >= EMI / months x 100'],['Risk score','8/running-balance break (max 40)+25/debit or credit with no balance change (max 50)+10 date order+20 PDF edit+5/cyclic pair (max 15)+5 stock+5 legal+3/EMI bounce (max 10)']]);
- await sv('Bank_Analysis_'+(meta.name||'customer').replace(/\W+/g,'_')+'.xlsx',new Uint8Array(XLSX.write(wb,{type:'array',bookType:'xlsx'})))}
+ const graphSpecs=attachDashboardData(wb);
+ await sv('Bank_Analysis_'+(meta.name||'customer').replace(/\W+/g,'_')+'.xlsx',embedExcelDashboard(XLSX.write(wb,{type:'array',bookType:'xlsx',compression:false}),graphSpecs))}
+// All charts stay INSIDE the first worksheet. No image files or extra downloads.
+let exportChartConfigs=[];
+const excelChartTitles=['Cash flows (INR lakh)','Average / closing balance (INR lakh)','Credit composition (INR lakh)','Payment modes (INR lakh)','EMI candidates / reversals (INR lakh)','Outgoing keyword matches (INR)'];
+function dashboardRows(A){
+ const out=Array.from({length:40},()=>Array(24).fill(null));
+ const set=(r,c,v)=>out[r-1][c-1]=v;
+ set(1,1,'BANK STATEMENT ANALYSER PRO');set(2,1,'Prepared by CA VINOD H DANDWANI');
+ set(3,1,meta.name);set(4,1,meta.bank+' | A/c ending '+meta.acc.slice(-4)+' | '+cfg.type+' | '+ds(A.first)+' to '+ds(A.last));
+ const labels=['Credits INR','Debits INR','Net inflow INR','Daily average INR','Closing INR','Cheque returns'];
+ const vals=[A.tcr,A.tdr,A.tcr-A.tdr,A.abb,A.rows.at(-1).bal,A.cbs.length];
+ labels.forEach((v,i)=>{set(6,1+i*4,v);set(7,1+i*4,Math.round(vals[i]*100)/100)});
+ set(9,1,A.rows.length+' transactions | '+A.breaks+' balance breaks | EMI candidates require a loan schedule | Statement age '+A.age+' days');
+ set(38,1,'NEW: six embedded charts on this first sheet. Yellow marks revised information; graphs are editable Excel charts.');
+ set(39,1,'CAUTION: narration categories are not verified income or EMI. No keyword match is not a clean-risk certificate.');
+ set(40,1,'Axis review: full-period ABB, source totals, two confirmed cheque returns and TPARTY false flags corrected.');
+ return out;
+}
+function attachDashboardData(wb){
+ const sh=wb.Sheets['Summary'];sh['!cols']=Array.from({length:24},()=>({wch:7}));sh['!rows']=Array.from({length:40},(_,i)=>({hpt:i===0?24:18}));
+ sh['!merges']=[...['A1:X1','A2:X2','A3:X3','A4:X4','A9:X9','A38:X38','A39:X39','A40:X40'].map(XLSX.utils.decode_range),...Array.from({length:6},(_,i)=>[6,7].map(r=>XLSX.utils.decode_range(XLSX.utils.encode_cell({r:r-1,c:i*4})+':'+XLSX.utils.encode_cell({r:r-1,c:i*4+3})))).flat()];
+ const data=wb.Sheets['Monthly Analysis'];
+ exportChartConfigs.forEach((cf,i)=>{const matrix=[['Chart category',...cf.data.datasets.map((d,j)=>d.label||'Amount')],...cf.data.labels.map((label,k)=>[i===2?['E-comm','Other receipts','Salary','Loan cand.','Cash','Reversals'][k]:label,...cf.data.datasets.map(d=>d.data[k])])];XLSX.utils.sheet_add_aoa(data,[[excelChartTitles[i]],...matrix],{origin:{r:i*20,c:8}})});
+ return exportChartConfigs.map((cf,i)=>({type:cf.type,title:excelChartTitles[i],labels:i===2?['E-comm','Other receipts','Salary','Loan cand.','Cash','Reversals']:cf.data.labels,datasets:cf.data.datasets.map(d=>({label:d.label||'Amount',data:d.data})),startRow:i*20+3}));
+}
+function xmlSafe(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]))}
+function excelChartXML(g,idx){
+ const ns='http://schemas.openxmlformats.org/drawingml/2006/chart',a='http://schemas.openxmlformats.org/drawingml/2006/main',colors=['2A6B52','B38E4F'];
+ const cache=(tag,vals)=>'<c:'+tag+'><c:ptCount val="'+vals.length+'"/>'+vals.map((v,i)=>'<c:pt idx="'+i+'"><c:v>'+xmlSafe(v)+'</c:v></c:pt>').join('')+'</c:'+tag+'>';
+ const last=g.startRow+g.labels.length-1,cat="'Monthly Analysis'!$I$"+g.startRow+':$I$'+last;
+ const series=g.datasets.map((s,j)=>{const col=String.fromCharCode(74+j),f="'Monthly Analysis'!$"+col+'$'+g.startRow+':$'+col+'$'+last;return '<c:ser><c:idx val="'+j+'"/><c:order val="'+j+'"/><c:tx><c:v>'+xmlSafe(s.label.replace('(L)',''))+'</c:v></c:tx><c:spPr><a:solidFill><a:srgbClr val="'+colors[j%2]+'"/></a:solidFill><a:ln w="19050"><a:solidFill><a:srgbClr val="'+colors[j%2]+'"/></a:solidFill></a:ln></c:spPr><c:cat><c:strRef><c:f>'+xmlSafe(cat)+'</c:f>'+cache('strCache',g.labels)+'</c:strRef></c:cat><c:val><c:numRef><c:f>'+xmlSafe(f)+'</c:f>'+cache('numCache',s.data)+'</c:numRef></c:val></c:ser>'}).join('');
+ const chart=g.type==='line'?'lineChart':'barChart';
+ const title='<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="1000" b="1"/></a:pPr><a:r><a:t>'+xmlSafe(g.title)+'</a:t></a:r></a:p></c:rich></c:tx><c:overlay val="0"/></c:title>';
+ const axisText='<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="800"/></a:pPr><a:endParaRPr lang="en-US"/></a:p></c:txPr>';
+ return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><c:chartSpace xmlns:c="'+ns+'" xmlns:a="'+a+'"><c:chart>'+title+'<c:plotArea><c:layout/><c:'+chart+'>'+(chart==='barChart'?'<c:barDir val="col"/><c:grouping val="clustered"/>':'<c:grouping val="standard"/>')+series+'<c:axId val="100"/><c:axId val="200"/></c:'+chart+'><c:catAx><c:axId val="100"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:axPos val="b"/><c:tickLblPos val="nextTo"/>'+axisText+'<c:crossAx val="200"/><c:crosses val="autoZero"/><c:lblAlgn val="ctr"/></c:catAx><c:valAx><c:axId val="200"/><c:scaling><c:orientation val="minMax"/><c:min val="0"/></c:scaling><c:axPos val="l"/><c:majorGridlines/><c:numFmt formatCode="0.##" sourceLinked="0"/><c:tickLblPos val="nextTo"/>'+axisText+'<c:crossAx val="100"/><c:crosses val="autoZero"/></c:valAx></c:plotArea><c:legend><c:legendPos val="b"/><c:overlay val="0"/>'+axisText+'</c:legend><c:plotVisOnly val="1"/></c:chart></c:chartSpace>';
+}
+// SheetJS creates an uncompressed ZIP below. Keep entries stored to avoid another CDN dependency.
+function zipStoreFiles(entries){
+ const enc=new TextEncoder(),parts=[],central=[];let pos=0;
+ const crc=b=>{let c=-1;for(const x of b){c^=x;for(let j=0;j<8;j++)c=(c>>>1)^((c&1)?0xedb88320:0)}return(c^-1)>>>0};
+ const head=(len)=>{const b=new Uint8Array(len);return[b,new DataView(b.buffer)]};
+ for(const [name,bytes] of entries){const n=enc.encode(name),b=typeof bytes==='string'?enc.encode(bytes):bytes,cs=crc(b);let[h,v]=head(30);v.setUint32(0,0x04034b50,true);v.setUint16(4,20,true);v.setUint32(14,cs,true);v.setUint32(18,b.length,true);v.setUint32(22,b.length,true);v.setUint16(26,n.length,true);parts.push(h,n,b);let[ch,cv]=head(46);cv.setUint32(0,0x02014b50,true);cv.setUint16(4,20,true);cv.setUint16(6,20,true);cv.setUint32(16,cs,true);cv.setUint32(20,b.length,true);cv.setUint32(24,b.length,true);cv.setUint16(28,n.length,true);cv.setUint32(42,pos,true);central.push(ch,n);pos+=h.length+n.length+b.length}
+ const size=central.reduce((a,b)=>a+b.length,0);let[e,ev]=head(22);ev.setUint32(0,0x06054b50,true);ev.setUint16(8,entries.size,true);ev.setUint16(10,entries.size,true);ev.setUint32(12,size,true);ev.setUint32(16,pos,true);const all=[...parts,...central,e],out=new Uint8Array(pos+size+22);let k=0;for(const b of all){out.set(b,k);k+=b.length}return out;
+}
+function embedExcelDashboard(base,graphs){
+ const bytes=new Uint8Array(base),view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength),dec=new TextDecoder(),entries=new Map();let p=0;
+ while(p+30<bytes.length&&view.getUint32(p,true)===0x04034b50){const method=view.getUint16(p+8,true),size=view.getUint32(p+18,true),nl=view.getUint16(p+26,true),ex=view.getUint16(p+28,true),name=dec.decode(bytes.slice(p+30,p+30+nl)),off=p+30+nl+ex;if(method!==0)throw Error('Excel ZIP must use compression:false');entries.set(name,bytes.slice(off,off+size));p=off+size}
+ const get=n=>dec.decode(entries.get(n));
+ const relns='http://schemas.openxmlformats.org/package/2006/relationships',rns='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+ let styleXML=get('xl/styles.xml');
+ const appendStyles=(tag,body)=>{let index;styleXML=styleXML.replace(new RegExp('<'+tag+' count="(\\d+)"[^>]*>([\\s\\S]*?)</'+tag+'>'),(all,count,inside)=>{index=+count;return '<'+tag+' count="'+(+count+(body.match(/<(?:font|fill|xf)(?:>| )/g)||[]).length)+'">'+inside+body+'</'+tag+'>'});return index};
+ const font=appendStyles('fonts','<font><sz val="10"/><color rgb="FF16332A"/><name val="Arial"/></font><font><b/><sz val="16"/><color rgb="FF2A6B52"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><b/><sz val="13"/><color rgb="FF16332A"/><name val="Arial"/></font>');
+ const fill=appendStyles('fills','<fill><patternFill patternType="solid"><fgColor rgb="FF2A6B52"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFEDF3EF"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFF3CC"/><bgColor indexed="64"/></patternFill></fill>');
+ const xf=(f,b,n=0)=>'<xf numFmtId="'+n+'" fontId="'+f+'" fillId="'+b+'" borderId="0" xfId="0" applyFont="1" applyFill="1" applyNumberFormat="1"><alignment vertical="center"/></xf>';
+ const idx=appendStyles('cellXfs',xf(font,0)+xf(font+1,0)+xf(font+2,fill)+xf(font+3,fill+1,4)+xf(font,fill+2));const styles={body:idx,title:idx+1,label:idx+2,value:idx+3,note:idx+4};entries.set('xl/styles.xml',styleXML);
+ let sheet=get('xl/worksheets/sheet1.xml').replace(/<pageMargins[^>]*\/>/g,'').replace(/<pageSetup[^>]*\/>/g,'').replace('<sheetPr/>','').replace(/<sheetPr>.*?<\/sheetPr>/s,'');
+ sheet=sheet.replace(/(<worksheet\b[^>]*>)/,'$1<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>');
+ sheet=sheet.replace(/<sheetView\b[^>]*>/g,m=>m.replace(/(?:showGridLines|zoomScale)="[^"]*"/g,'').replace(/\/?>$/,' showGridLines="0" zoomScale="75"'+(m.endsWith('/>')?'/>':'>')));
+ sheet=sheet.replace(/(<c\b[^>]*r="([A-Z]+)(\d+)"[^>]*?)(\/?>)/g,(all,tag,col,row,end)=>{let style=+row===1?styles.title:+row===6?styles.label:+row===7?styles.value:+row>=38?styles.note:styles.body;return tag.replace(/ s="\d+"/,'')+' s="'+style+'"'+end});
+ const tail='<pageMargins left="0.2" right="0.2" top="0.25" bottom="0.25" header="0.1" footer="0.1"/><pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="1"/><drawing xmlns:r="'+rns+'" r:id="rIdDashboard"/>';
+ const at=sheet.indexOf('<ignoredErrors');sheet=at<0?sheet.replace('</worksheet>',tail+'</worksheet>'):sheet.slice(0,at)+tail+sheet.slice(at);entries.set('xl/worksheets/sheet1.xml',sheet);
+ entries.set('xl/worksheets/_rels/sheet1.xml.rels','<Relationships xmlns="'+relns+'"><Relationship Id="rIdDashboard" Type="'+rns+'/drawing" Target="../drawings/dashboard.xml"/></Relationships>');
+ let anchors='',rels='',types='';
+ graphs.forEach((g,i)=>{const col=(i%3)*8,row=i<3?10:23;anchors+='<xdr:twoCellAnchor><xdr:from><xdr:col>'+col+'</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>'+row+'</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>'+(col+8)+'</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>'+(row+12)+'</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to><xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="'+(i+1)+'" name="Dashboard chart '+(i+1)+'"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:r="'+rns+'" r:id="rId'+i+'"/></a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor>';rels+='<Relationship Id="rId'+i+'" Type="'+rns+'/chart" Target="../charts/dashboard'+i+'.xml"/>';types+='<Override PartName="/xl/charts/dashboard'+i+'.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>';entries.set('xl/charts/dashboard'+i+'.xml',excelChartXML(g,i))});
+ entries.set('xl/drawings/dashboard.xml','<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'+anchors+'</xdr:wsDr>');entries.set('xl/drawings/_rels/dashboard.xml.rels','<Relationships xmlns="'+relns+'">'+rels+'</Relationships>');
+ entries.set('[Content_Types].xml',get('[Content_Types].xml').replace('</Types>',types+'<Override PartName="/xl/drawings/dashboard.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/></Types>'));
+ let workbook=get('xl/workbook.xml');const dn='<definedName name="_xlnm.Print_Area" localSheetId="0">Summary!$A$1:$X$40</definedName>';workbook=workbook.includes('</definedNames>')?workbook.replace('</definedNames>',dn+'</definedNames>'):workbook.includes('<definedNames/>')?workbook.replace('<definedNames/>','<definedNames>'+dn+'</definedNames>'):workbook.includes('<calcPr')?workbook.replace('<calcPr','<definedNames>'+dn+'</definedNames><calcPr'):workbook.replace('</workbook>','<definedNames>'+dn+'</definedNames></workbook>');entries.set('xl/workbook.xml',workbook);
+ return zipStoreFiles(entries);
+}
+
 function getLog(){try{return JSON.parse(localStorage.getItem('ctl')||'[]')}catch(e){return[]}}
 function log(A){const l=getLog();l.push([new Date().toLocaleString('en-GB'),meta.name,meta.bank,meta.acc?'XXXX'+meta.acc.slice(-4):'',cfg.type,meta.file,ds(A.first),ds(A.last),A.age,A.risk<25?'Low':A.risk<55?'Medium':'High',A.risk,A.dev.length]);try{localStorage.setItem('ctl',JSON.stringify(l))}catch(e){}showLog(l)}
 const LH=['Date & time','Customer','Bank','Account','Type','File','From','To','Age (days)','Risk band','Risk score','Deviations'];
