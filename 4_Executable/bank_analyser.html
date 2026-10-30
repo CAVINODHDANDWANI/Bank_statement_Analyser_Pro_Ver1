@@ -39,8 +39,8 @@ footer{text-align:center;padding:26px 20px 36px;color:var(--mu);font-size:14px;b
 @media print{header,footer,.kpi{-webkit-print-color-adjust:exact;print-color-adjust:exact}button,.drop,#val,#up{display:none}.card{box-shadow:none;break-inside:avoid}}
 .g3{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));margin-top:14px}.cc{border:1px solid var(--ln);border-radius:10px;padding:12px}.cc h3{margin:0 0 6px;font-size:15px;text-align:center}.ins{background:rgba(201,162,39,.16);border-left:5px solid #c9a227;padding:10px 14px;margin:14px 0 0;font-weight:600;border-radius:6px}.tp h3{margin:0 0 6px;padding:6px 10px;background:rgba(42,107,82,.12);color:#2a6b52;font-size:14px;letter-spacing:.4px;text-transform:uppercase}.tp ul{margin:0;padding-left:18px;font-size:14px}.fn{font-size:12.5px;color:var(--mu);margin-top:12px}.banking-review .grid{grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}.banking-review .kpi{padding:10px}.banking-review .kpi b{font-size:21px}.banking-review .g3{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.banking-review .tp{font-size:12px}@media(max-width:800px){.banking-review .grid{grid-template-columns:repeat(3,minmax(0,1fr))}.banking-review .g3{grid-template-columns:1fr}}</style></head><body>
 <header><div class="hw"><div><div class="eyebrow">CREDIT UNDERWRITING TOOLKIT · VERSION 1</div><h1>Bank Statement Analyser <span class="pro">PRO</span></h1><p class="sub">by CA Vinod H Dandwani</p></div><div class="hn">🔒 All processing happens inside your browser – no statement data is uploaded</div></div></header>
-<main>
-<div class="card" id="up"><h2>1. Upload statement</h2><div class="drop"><p>PDF (text or scanned), Excel, CSV or photo/scan image – <b>select several files together</b> (monthly / quarterly / multiple accounts); they are merged, sorted and checked for missing periods</p><input type="file" id="f" multiple accept=".pdf,.xlsx,.xls,.csv,.png,.jpg,.jpeg"><p id="st" style="color:var(--mu)"></p></div></div>
+<dialog id="pdfPasswordDialog" style="max-width:460px;border:1px solid #aaa;border-radius:12px;padding:24px"><form method="dialog" id="pdfPasswordForm"><h2>PDF password</h2><p id="pdfPasswordMessage"></p><label for="pdfPasswordValue">Statement password</label><input id="pdfPasswordValue" type="password" autocomplete="off" spellcheck="false" required><p><button type="submit">Unlock PDF</button> <button type="button" class="s" id="pdfPasswordCancel">Cancel</button></p></form></dialog><main>
+<div class="card" id="up"><h2>1. Upload statement</h2><div class="drop"><p>PDF (text or scanned), Excel, CSV or photo/scan image – <b>select several files together</b> (monthly / quarterly / multiple accounts); they are merged, sorted and checked for missing periods</p><input type="file" id="f" multiple accept=".pdf,.xlsx,.xls,.csv,.png,.jpg,.jpeg"><p><button type="button" id="retryPdf" class="s">Read selected files again</button></p><p>Password-protected PDFs will ask for a password in a secure entry box. Passwords are not saved.</p><p id="st" style="color:var(--mu)"></p></div></div>
 <div class="card hide" id="val"><h2>2. Validate details</h2><div id="acw" class="hide" style="margin-bottom:10px"><label>Several accounts found in this file – choose the one to analyse</label><select id="ac"></select></div><div class="grid">
 <div><label>Customer name</label><input id="cn"></div><div><label>Bank name</label><input id="bn"></div><div><label>Account number</label><input id="an"></div>
 <div><label>Period from</label><input id="pf" readonly></div><div><label>Period to</label><input id="pt" readonly></div>
@@ -49,7 +49,7 @@ footer{text-align:center;padding:26px 20px 36px;color:var(--mu);font-size:14px;b
 <div><label>Proposed EMI ₹</label><input id="em" type="number" value="0"></div></div>
 <div id="cov"></div><div id="stale"></div><p><button id="go">Confirm &amp; Analyse</button> <span id="cnt" style="color:var(--mu)"></span></p></div>
 <div id="out" class="hide"></div>
-<div class="card"><p><b>Reviewed Axis parser edition • 29 October 2026.</b> Axis column alignment, opening balance, declared-period daily average and third-party keyword matching corrected. Other bank layouts and automated risk labels require separate validation.</p></div><div class="card"><h2>Control sheet – analyses done on this laptop</h2><div class="tw" id="log"></div><p><button class="s" id="dl">Download control sheet (CSV)</button></p></div>
+<div class="card"><h2>Control sheet – analyses done on this laptop</h2><div class="tw" id="log"></div><p><button class="s" id="dl">Download control sheet (CSV)</button></p></div>
 </main><footer><b>Bank Statement Analyser PRO</b> · by <b>CA Vinod H Dandwani</b> · AICA Level 2 Capstone Project<br>Analysis is system-generated from the statements provided; verify figures against source documents before any credit decision.</footer>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -105,13 +105,62 @@ function readAxisColumns(pages){
  return out;
 }
 
-async function readPdf(buf){const pdf=await pdfjsLib.getDocument({data:buf}).promise,lines=[],pages=[];let md={};
+
+async function openStatementPdf(buf,fileName='PDF statement'){
+ const task=pdfjsLib.getDocument({data:buf});let cancelled=false;
+ task.onPassword=(updatePassword,reason)=>{
+  const dlg=$('pdfPasswordDialog'),input=$('pdfPasswordValue');input.value='';
+  $('pdfPasswordMessage').textContent=(reason===2?'Incorrect password. Please try again for ':'Enter the password for ')+fileName;
+  const cleanup=()=>{input.value='';$('pdfPasswordForm').onsubmit=null;$('pdfPasswordCancel').onclick=null;dlg.oncancel=null};
+  const cancel=()=>{cancelled=true;cleanup();dlg.close();task.destroy().catch(()=>{})};
+  $('pdfPasswordCancel').onclick=cancel;dlg.oncancel=e=>{e.preventDefault();cancel()};
+  $('pdfPasswordForm').onsubmit=e=>{e.preventDefault();const password=input.value;cleanup();dlg.close();updatePassword(password)};
+  dlg.showModal();input.focus();
+ };
+ try{return await task.promise}catch(e){if(cancelled)throw Error('Password entry cancelled; use Read selected files again to retry.');throw e}
+}
+// ICICI Saving Account transaction-statement layout: retain physical columns.
+function readIciciColumns(pages){
+ const text=pages.flat().map(i=>i.str).join(' ');
+ if(!/Statement of Transactions in Savin(?:g|gs) Account no\./i.test(text)||!/ICICI/i.test(text))return null;
+ const account=text.match(/Account no\.\s*(\d{9,18})/i)?.[1];
+ const period=text.match(/for the period\s+([A-Za-z]+\s+\d{1,2},\s*\d{4})\s*-\s*([A-Za-z]+\s+\d{1,2},\s*\d{4})/i);
+ const fullDate=v=>{const m=v.match(/([A-Za-z]+)\s+(\d+),\s*(\d+)/);return new Date(+m[3],MON[m[1].slice(0,3).toLowerCase()],+m[2])};
+ const out=[];let expected=1;
+ for(let p=0;p<pages.length;p++){
+  const items=pages[p],x=i=>i.transform[4],y=i=>i.transform[5];
+  const wh=items.find(i=>/^Withdrawal\b/i.test(i.str)),dh=items.find(i=>/^Deposit\b/i.test(i.str)),bh=items.find(i=>/^Balance\b/i.test(i.str));
+  if(!wh||!dh||!bh)throw Error('ICICI column headings not recognised on page '+(p+1));
+  const cut1=(x(wh)+x(dh))/2,cut2=(x(dh)+x(bh))/2;
+  const anchors=items.filter(i=>/^\d{2}\.\d{2}\.\d{4}$/.test(i.str)&&x(i)<120).sort((a,b)=>y(b)-y(a));
+  for(let z=0;z<anchors.length;z++){
+   const a=anchors[z],ay=y(a),near=items.filter(i=>Math.abs(y(i)-ay)<2);
+   const seq=near.find(i=>x(i)<x(a)&&/^\d+$/.test(i.str));
+   if(!seq||+seq.str!==expected)throw Error('ICICI transaction sequence mismatch near '+a.str);
+   const amounts=near.filter(i=>x(i)>x(wh)-35&&/^-?[\d,]+\.\d{2}$/.test(i.str));
+   const debit=amounts.filter(i=>x(i)<cut1),credit=amounts.filter(i=>x(i)>=cut1&&x(i)<cut2),balance=amounts.filter(i=>x(i)>=cut2);
+   if(balance.length!==1||debit.length+credit.length!==1)throw Error('ICICI amounts are ambiguous at transaction '+expected);
+   const dr=debit.length===1,amt=num((debit[0]||credit[0]).str),bal=num(balance[0].str);
+   if(out.length&&Math.abs(Math.round(out.at(-1).bal*100)+Math.round((dr?-amt:amt)*100)-Math.round(bal*100))>1)throw Error('ICICI running balance does not reconcile at transaction '+expected+'; review source.');
+   const bottom=z+1<anchors.length?y(anchors[z+1])+7:Math.max(0,ay-35);
+   const n=items.filter(i=>x(i)>150&&x(i)<x(wh)-35&&y(i)<=ay+7&&y(i)>bottom).sort((a,b)=>y(b)-y(a)||x(a)-x(b)).map(i=>i.str).join(' ');
+   out.push({d:pdt(a.str),n,amt,bal,dr,acc:account,sourcePage:p+1,sourceSeq:expected++});
+  }
+ }
+ if(!account||!out.length)throw Error('ICICI statement header or transactions missing.');
+ out[0].ob=+(out[0].bal+(out[0].dr?out[0].amt:-out[0].amt)).toFixed(2);out[0].openingInferred=true;
+ if(period){out[0].coverageStart=fullDate(period[1]);out[0].coverageEnd=fullDate(period[2])}
+ const first=pages[0],name=first.filter(i=>i.transform[4]<180&&i.transform[5]>0&&/^[A-Z][A-Z .]+$/.test(i.str)&&i.str.trim().length>3).sort((a,b)=>b.transform[5]-a.transform[5]).find(i=>!/STATEMENT|ICICI|BANK|INR/.test(i.str));
+ meta.name=name?.str||meta.name;meta.bank='ICICI';meta.acc=account;meta.types={[account]:'Savings'};return out;
+}
+
+async function readPdf(buf,fileName){const pdf=await openStatementPdf(buf,fileName),lines=[],pages=[];let md={};
  try{md=(await pdf.getMetadata()).info||{}}catch(e){}
  for(let p=1;p<=pdf.numPages;p++){const tc=await(await pdf.getPage(p)).getTextContent(),by={};pages.push(tc.items);
   tc.items.forEach(i=>{if(!i.str.trim())return;const y=Math.round(i.transform[5]/3);(by[y]=by[y]||[]).push([i.transform[4],i.str])});
   Object.keys(by).sort((a,b)=>b-a).forEach(y=>lines.push(by[y].sort((a,b)=>a[0]-b[0]).map(a=>a[1]).join('  ')))}
  let txt=lines.join('\n'),scan=false;if(txt.replace(/\s/g,'').length<200){scan=true;lines.length=0;lines.push(...await ocrCanvases(pdfCanvas(pdf),pdf.numPages));txt=lines.join('\n')}
- meta=getMeta(txt.slice(0,3000)+'\n'+txt);meta.pdf=md;meta.scan=scan;return readAxisColumns(pages)||parseLines(lines)}
+ meta=getMeta(txt.slice(0,3000)+'\n'+txt);meta.pdf=md;meta.scan=scan;return readIciciColumns(pages)||readAxisColumns(pages)||parseLines(lines)}
 function parseLines(lines){const DRX=/^\s*(?:\d{1,4}\s+)?(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{1,2}[\/\- ]?[A-Za-z]{3}[\/\- ,]*\d{2,4})/,NRX=/(?<![\w.])(\(?[-+]?(?:\d{1,3}(?:,\d{2,3})+|\d+)\.\d{2}\)?)(?!\d)(?:\s*\(?(Dr|Cr)\)?(?![A-Za-z]))?/gi;
  const isH=l=>/\bdate\b/i.test(l)&&/balance/i.test(l)&&/(withdraw|debit|deposit|credit|amount|\bdr\b|\bcr\b)/i.test(l),gate=lines.some(isH),EX=/\b(transaction turnover|grand total|total|closing balance|opening balance|brought forward|carried forward|sub-?total)\b/i;
  const accs={},blocks=[];let acc='',cur=null,last=null,pend=0,inT=!gate,ld=null,buf=[];const get=a=>accs[a]=accs[a]||{acc:a,dp:0};
@@ -170,12 +219,12 @@ function readSheet(buf){const wb=XLSX.read(buf,{type:'array',cellDates:true,raw:
    out.push({d:dt,n:String(r[ci.n]||''),amt,bal,sg:!!sf||bal<0,acc,dr})})});
  if(!out.length)throw new Error('Could not find header row (Date / Balance columns).');
  const m=getMeta(tx.join('\n'));meta.name=m.name;meta.acc=m.acc;meta.bank=m.bank;meta.open=m.open;return out}
-$('f').onchange=async e=>{const fs=[...e.target.files];if(!fs.length)return;ALL=[];FILES=[];DUP=0;let nm='',bk='',ac='',dps={},tys={},lms={},scan=false,errs=[],ok=0;
+$('f').onchange=async e=>{const fs=[...e.target.files];if(!fs.length)return;$('val').classList.add('hide');$('out').classList.add('hide');ALL=[];FILES=[];DUP=0;let nm='',bk='',ac='',dps={},tys={},lms={},scan=false,errs=[],ok=0;
  for(const f of fs){$('st').textContent='Reading '+f.name+' (file '+(fs.indexOf(f)+1)+' of '+fs.length+') …';
-  try{const b=await f.arrayBuffer(),isP=/\.pdf$/i.test(f.name);meta={};let R=isP?await readPdf(b):/\.(png|jpe?g)$/i.test(f.name)?await readImg(f):readSheet(b);
+  try{const b=await f.arrayBuffer(),isP=/\.pdf$/i.test(f.name);meta={};let R=isP?await readPdf(b,f.name):/\.(png|jpe?g)$/i.test(f.name)?await readImg(f):readSheet(b);
    if(R.length<2)throw new Error('no transactions found');if(!isP){const g0={};R.forEach(r=>(g0[r.acc]=g0[r.acc]||[]).push(r));R=Object.values(g0).flatMap(x=>x.length>1&&x[0].d>x[x.length-1].d?x.reverse():x)}const m=meta;nm=nm||m.name;bk=bk||m.bank;ac=ac||m.acc;Object.assign(dps,m.dps||{});Object.assign(tys,m.types||{});Object.assign(lms,m.lims||{});scan=scan||!!m.scan;
    const g={};R.forEach(r=>{r.acc=r.acc||m.acc||'';r.file=f.name;(g[r.acc]=g[r.acc]||[]).push(r)});
-   Object.keys(g).forEach(k=>{const t=g[k].map(r=>+r.d);FILES.push({name:f.name,acc:k,from:Math.min(...t),to:Math.max(...t),n:g[k].length})});ALL.push(...R);ok++}
+   Object.keys(g).forEach(k=>{const t=g[k].map(r=>+r.d);FILES.push({name:f.name,acc:k,from:g[k][0].coverageStart?+g[k][0].coverageStart:Math.min(...t),to:g[k][0].coverageEnd?+g[k][0].coverageEnd:Math.max(...t),n:g[k].length})});ALL.push(...R);ok++}
   catch(x){errs.push(f.name+': '+x.message)}}
  if(ALL.length<3){$('st').innerHTML='<span style="color:var(--bd)">'+E(errs.join(' | ')||'Could not read transactions.')+'</span>';return}
  const seen={},U=[];ALL.forEach(r=>{const k=r.acc+'|'+r.d.getTime()+'|'+r.amt+'|'+r.bal+'|'+r.n.slice(0,15);if(seen[k])DUP++;else{seen[k]=1;U.push(r)}});
@@ -183,6 +232,7 @@ $('f').onchange=async e=>{const fs=[...e.target.files];if(!fs.length)return;ALL=
  meta={name:nm,bank:bk,acc:ac,dps,types:tys,lims:lms,scan,file:fs.map(f=>f.name).join(', ')};$('cn').value=nm||'';$('bn').value=bk||'';fillAccts();
  $('st').innerHTML='✔ '+ok+' of '+fs.length+' file(s) merged'+(errs.length?'<br><span style="color:var(--bd)">Could not read: '+E(errs.join(' | '))+'</span>':'');$('val').classList.remove('hide');$('out').classList.add('hide')};
 let FILES=[],DUP=0,COV=null;
+$('retryPdf').onclick=()=>$('f').onchange({target:$('f')});
 function getCov(k){const R=ALL.filter(r=>r.acc===k),F=FILES.filter(f=>f.acc===k).sort((a,b)=>a.from-b.from),gaps=[],D=864e5;let end=null;
  F.forEach(f=>{if(end!=null&&f.from-end>D)gaps.push([new Date(end+D),new Date(f.from-D)]);end=Math.max(end==null?0:end,f.to)});
  const cont=[];for(let i=1;i<R.length;i++){const d=R[i].bal-R[i-1].bal;if(Math.abs(Math.abs(d)-R[i].amt)>1.01)cont.push([R[i-1].d,R[i].d,Math.abs(Math.abs(d)-R[i].amt)])}
@@ -197,10 +247,10 @@ let ALL=[];
 function fillAccts(){const g={};ALL.forEach(r=>(g[r.acc]=g[r.acc]||[]).push(r));const ks=Object.keys(g).sort((a,b)=>g[b].length-g[a].length);
  $('ac').innerHTML=ks.map(k=>{const a=g[k],t=a.map(r=>+r.d);return '<option value="'+k+'">'+(k||'Account')+' – '+a.length+' transactions – '+ds(new Date(Math.min(...t)))+' to '+ds(new Date(Math.max(...t)))+'</option>'}).join('');$('acw').classList.toggle('hide',ks.length<2);pick(ks[0])}
 function pick(k){rows=ALL.filter(r=>r.acc===k);const t=rows.map(r=>+r.d),dp=(meta.dps||{})[k]||0,neg=rows.some(r=>r.sg&&r.bal<0);$('an').value=k||meta.acc||'';
- $('pf').value=ds(new Date(Math.min(...t)));$('pt').value=ds(new Date(Math.max(...t)));const age=Math.floor((Date.now()-Math.max(...t))/864e5);
+ const start=rows[0].coverageStart?+rows[0].coverageStart:Math.min(...t),end=rows[0].coverageEnd?+rows[0].coverageEnd:Math.max(...t);$('pf').value=ds(new Date(start));$('pt').value=ds(new Date(end));const age=Math.floor((Date.now()-end)/864e5);
  $('stale').innerHTML=age>15?'<div class="warn">⚠ Statement is <b>'+age+' days old</b> (more than 15 days) – flagged for the aged-statement division.</div>':'';
  const tp=(meta.types||{})[k]||'',lmv=(meta.lims||{})[k]||dp,ty=/cash\s*credit|\bcc\b/i.test(tp)?'CC':/overdraft|\bod\b/i.test(tp)?'OD':/current/i.test(tp)?'Current':/saving/i.test(tp)?'Savings':(dp>0&&neg?'CC':neg?'Current':$('ty').value);$('ty').value=ty;$('ty').onchange();const odx=/OD|CC/.test(ty);$('lm').value=odx?lmv:'';$('dp').value=odx?(dp||lmv):'';
- COV=getCov(k);const bad=COV.cont.length/Math.max(1,rows.length);$('cov').innerHTML=(bad>0.05?'<div class="warn">⚠ Only '+Math.round((1-bad)*100)+'% of rows reconcile with the running balance. This statement layout may not be read correctly – please verify against the original.</div>':'')+'<h3>Statement coverage – '+(k||'account')+'</h3>'+covHTML(COV);$('cnt').textContent=rows.length+' transactions in this account ('+ALL.length+' in all files)'}
+ COV=getCov(k);const bad=COV.cont.length/Math.max(1,rows.length);$('cov').innerHTML=(bad>0.05?'<div class="warn">⚠ Only '+Math.round((1-bad)*100)+'% of rows reconcile with the running balance. This statement layout may not be read correctly – please verify against the original.</div>':'')+(rows[0].openingInferred?'<div class="warn">Opening balance is derived from the first transaction and its closing balance; verify against the bank source.</div>':'')+'<h3>Statement coverage – '+(k||'account')+'</h3>'+covHTML(COV);$('cnt').textContent=rows.length+' transactions in this account ('+ALL.length+' in all files)'}
 $('ac').onchange=()=>pick($('ac').value);
 $('ty').onchange=()=>document.querySelectorAll('.od').forEach(e=>e.classList.toggle('hide',!/OD|CC/.test($('ty').value)));
 const RX={stock:/ZERODHA|GROWW|UPSTOX|ANGEL ?(ONE|BROK)|\bNSE\b|\bBSE\b|ICCL|NSCCL|5PAISA|SHAREKHAN|MOTILAL|SECURITIES|BROKING|DEMAT/i,legal:/ADVOCATE|LAW |LEGAL|COURT|ATTORNEY|SOLICITOR|\bADV\b|ADVOCATES/i,life:/LIQUOR|WINE|\bBAR\b|\bPUB\b|DISCO|BREWER|BEER|LOUNGE|TASMAC|NIGHT ?CLUB|\bPARTY\b/i,ecom:/RAZORPAY|PAYU|CASHFREE|PAYTM|AMAZON|FLIPKART|BILLDESK|INSTAMOJO|CCAVENUE|SWIGGY|ZOMATO|PHONEPE|MEESHO|SETTLEMENT/i,
@@ -363,8 +413,14 @@ function embedExcelDashboard(base,graphs){
  sheet=sheet.replace(/(<worksheet\b[^>]*>)/,'$1<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>');
  sheet=sheet.replace(/<sheetView\b[^>]*>/g,m=>m.replace(/(?:showGridLines|zoomScale)="[^"]*"/g,'').replace(/\/?>$/,' showGridLines="0" zoomScale="75"'+(m.endsWith('/>')?'/>':'>')));
  sheet=sheet.replace(/(<c\b[^>]*r="([A-Z]+)(\d+)"[^>]*?)(\/?>)/g,(all,tag,col,row,end)=>{let style=+row===1?styles.title:+row===6?styles.label:+row===7?styles.value:+row>=38?styles.note:styles.body;return tag.replace(/ s="\d+"/,'')+' s="'+style+'"'+end});
- const tail='<pageMargins left="0.2" right="0.2" top="0.25" bottom="0.25" header="0.1" footer="0.1"/><pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="1"/><drawing xmlns:r="'+rns+'" r:id="rIdDashboard"/>';
- const at=sheet.indexOf('<ignoredErrors');sheet=at<0?sheet.replace('</worksheet>',tail+'</worksheet>'):sheet.slice(0,at)+tail+sheet.slice(at);entries.set('xl/worksheets/sheet1.xml',sheet);
+ const pageLayout='<pageMargins left="0.2" right="0.2" top="0.25" bottom="0.25" header="0.1" footer="0.1"/><pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="1"/>';
+ const drawing='<drawing xmlns:r="'+rns+'" r:id="rIdDashboard"/>';
+ // OOXML requires ignoredErrors before drawing. An invalid order makes desktop Excel repair
+ // sheet1 and can leave the visible Summary worksheet blank.
+ const ignoredAt=sheet.indexOf('<ignoredErrors');
+ if(ignoredAt<0)sheet=sheet.replace('</worksheet>',pageLayout+drawing+'</worksheet>');
+ else{sheet=sheet.slice(0,ignoredAt)+pageLayout+sheet.slice(ignoredAt);sheet=sheet.replace('</ignoredErrors>','</ignoredErrors>'+drawing)}
+ entries.set('xl/worksheets/sheet1.xml',sheet);
  entries.set('xl/worksheets/_rels/sheet1.xml.rels','<Relationships xmlns="'+relns+'"><Relationship Id="rIdDashboard" Type="'+rns+'/drawing" Target="../drawings/dashboard.xml"/></Relationships>');
  let anchors='',rels='',types='';
  graphs.forEach((g,i)=>{const col=(i%3)*8,row=i<3?10:23;anchors+='<xdr:twoCellAnchor><xdr:from><xdr:col>'+col+'</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>'+row+'</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>'+(col+8)+'</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>'+(row+12)+'</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to><xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="'+(i+1)+'" name="Dashboard chart '+(i+1)+'"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:r="'+rns+'" r:id="rId'+i+'"/></a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor>';rels+='<Relationship Id="rId'+i+'" Type="'+rns+'/chart" Target="../charts/dashboard'+i+'.xml"/>';types+='<Override PartName="/xl/charts/dashboard'+i+'.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>';entries.set('xl/charts/dashboard'+i+'.xml',excelChartXML(g,i))});
