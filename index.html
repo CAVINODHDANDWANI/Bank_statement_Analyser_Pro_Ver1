@@ -154,13 +154,54 @@ function readIciciColumns(pages){
  meta.name=name?.str||meta.name;meta.bank='ICICI';meta.acc=account;meta.types={[account]:'Savings'};return out;
 }
 
+async function readIdfcStatement(pdf,pages){
+ const text=pages.flat().map(i=>i.str).join(' ');if(!/IDFC FIRST BANK/i.test(text))return null;
+ const out=[],account=text.match(/ACCOUNT NO\s*:\s*(\d+)/i)?.[1];
+ const header=pages[0],nameLabel=header.find(i=>i.str==='CUSTOMER NAME');
+ meta.name=nameLabel?header.filter(i=>i.str.trim()&&i.transform[4]>160&&i.transform[4]<310&&Math.abs(i.transform[5]-nameLabel.transform[5])<2).map(i=>i.str).join(' ').replace(/^\s*:\s*/,'').trim():'';
+ meta.bank='IDFC FIRST Bank';meta.acc=account;
+ for(let p=0;p<pages.length;p++){
+  const items=pages[p],op=await(await pdf.getPage(p+1)).getOperatorList(),rules=[],stack=[];let m=[1,0,0,1,0,0];
+  const mul=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
+  for(let j=0;j<op.fnArray.length;j++){const f=op.fnArray[j],a=op.argsArray[j];if(f===pdfjsLib.OPS.save)stack.push(m.slice());else if(f===pdfjsLib.OPS.restore)m=stack.pop()||m;else if(f===pdfjsLib.OPS.transform)m=mul(m,a);else if(f===pdfjsLib.OPS.constructPath){const b=a[2];if(b&&b[2]-b[0]>400&&Math.abs(b[3]-b[1])<.1)rules.push(m[1]*b[0]+m[3]*b[1]+m[5])}}
+  const dates=items.filter(i=>i.transform[4]<110&&/^\d{2}-[A-Za-z]{3}-\d{4}$/.test(i.str));
+  for(const dt of dates){const y=dt.transform[5],top=Math.min(...rules.filter(v=>v>y)),bottom=Math.max(...rules.filter(v=>v<y));if(!isFinite(top)||!isFinite(bottom))throw Error('IDFC table boundaries not recognised.');
+   const cell=items.filter(i=>i.str.trim()&&i.transform[5]<top&&i.transform[5]>bottom),money=cell.filter(i=>/^[\d,]+\.\d{2}$/.test(i.str)&&i.transform[4]>345),bal=money.find(i=>i.transform[4]>500),amt=money.find(i=>i.transform[4]<500);
+   if(!bal||!amt)throw Error('IDFC amount columns not recognised on page '+(p+1));
+   const narration=cell.filter(i=>i.transform[4]>=187&&i.transform[4]<292).sort((a,b)=>b.transform[5]-a.transform[5]||a.transform[4]-b.transform[4]).map(i=>i.str).join(' '),cheque=cell.filter(i=>i.transform[4]>=292&&i.transform[4]<345).map(i=>i.str).join(' ');
+   out.push({d:pdt(dt.str),n:narration+(cheque?' [Cheque no: '+cheque+']':''),amt:num(amt.str),bal:num(bal.str),dr:amt.transform[4]<425,acc:account,sourcePage:p+1});
+  }
+ }
+ const labels=['Opening Balance','Total Debit','Total Credit','Closing Balance'],vals=labels.map(label=>{const h=header.find(i=>i.str===label);return h?header.filter(i=>/^[\d,]+\.\d{2}$/.test(i.str)&&i.transform[5]<h.transform[5]&&i.transform[5]>h.transform[5]-25&&Math.abs(i.transform[4]+i.width-(h.transform[4]+h.width))<100).sort((a,b)=>Math.abs(a.transform[4]-h.transform[4])-Math.abs(b.transform[4]-h.transform[4]))[0]:null});
+ // Repeated summary row uses fixed right-aligned monetary columns in this layout.
+ const sy=header.find(i=>i.str==='Total Debit')?.transform[5];const summary=header.filter(i=>/^[\d,]+\.\d{2}$/.test(i.str)&&i.transform[5]<sy&&i.transform[5]>sy-25).sort((a,b)=>a.transform[4]-b.transform[4]);
+ if(summary.length!==4)throw Error('IDFC source totals unavailable.');
+ const totals=summary.map(i=>num(i.str));let prev=totals[0],debit=0,credit=0;
+ for(const r of out){const expected=Math.round(prev*100)+Math.round((r.dr?-r.amt:r.amt)*100);if(expected<0&&Math.abs(expected+Math.round(r.bal*100))<=1){r.bal=-r.bal;r.sg=true;r.balanceSignInferred=true}if(Math.abs(expected-Math.round(r.bal*100))>1)throw Error('IDFC balance mismatch on page '+r.sourcePage);prev=r.bal;if(r.dr)debit+=r.amt;else credit+=r.amt}
+ if(Math.abs(debit-totals[1])>.01||Math.abs(credit-totals[2])>.01||Math.abs(prev-totals[3])>.01)throw Error('IDFC source totals mismatch.');
+ out[0].ob=totals[0];meta.types={[account]:'Current'};return out;
+}
 async function readPdf(buf,fileName){const pdf=await openStatementPdf(buf,fileName),lines=[],pages=[];let md={};
  try{md=(await pdf.getMetadata()).info||{}}catch(e){}
  for(let p=1;p<=pdf.numPages;p++){const tc=await(await pdf.getPage(p)).getTextContent(),by={};pages.push(tc.items);
   tc.items.forEach(i=>{if(!i.str.trim())return;const y=Math.round(i.transform[5]/3);(by[y]=by[y]||[]).push([i.transform[4],i.str])});
   Object.keys(by).sort((a,b)=>b-a).forEach(y=>lines.push(by[y].sort((a,b)=>a[0]-b[0]).map(a=>a[1]).join('  ')))}
  let txt=lines.join('\n'),scan=false;if(txt.replace(/\s/g,'').length<200){scan=true;lines.length=0;lines.push(...await ocrCanvases(pdfCanvas(pdf),pdf.numPages));txt=lines.join('\n')}
- meta=getMeta(txt.slice(0,3000)+'\n'+txt);meta.pdf=md;meta.scan=scan;return readIciciColumns(pages)||readAxisColumns(pages)||parseLines(lines)}
+ meta=getMeta(txt.slice(0,3000)+'\n'+txt);meta.pdf=md;meta.scan=scan;return await readIdfcStatement(pdf,pages)||readSbiStatement(lines,pages)||readIciciColumns(pages)||readAxisColumns(pages)||parseLines(lines)}
+function readSbiStatement(lines,pages){
+ const text=lines.join('\n');if(!/State Bank of India/i.test(text)||!/Statement Summary/i.test(text))return null;
+ const end=lines.findIndex(l=>/Statement Summary/i.test(l)),out=parseLines(lines.slice(0,end));
+ const name=pages[0].map(i=>i.str.trim()).find(s=>/^(?:Ms\.?|Mr\.?|Mrs\.?)\s+[A-Za-z]/i.test(s));
+ if(name)meta.name=name;else meta.name='';
+ const period=text.match(/Statement From\s*:\s*(\d{2}-\d{2}-\d{4})\s*to\s*(\d{2}-\d{2}-\d{4})/i);
+ const tail=lines.slice(end).join(' '),summary=tail.match(/([\d,]+\.\d{2})\s*CR\s+(\d+)\s+(\d+)\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s*CR/i);
+ if(!out.length||!summary)throw Error('SBI source summary not recognised; review this layout.');
+ let prev=num(summary[1]),dr=0,cr=0,nd=0,nc=0;
+ for(const r of out){const delta=Math.round(r.bal*100)-Math.round(prev*100);if(Math.abs(Math.abs(delta)-Math.round(r.amt*100))>1)throw Error('SBI transaction balance mismatch; review source.');r.dr=delta<0;if(r.dr){dr+=r.amt;nd++}else{cr+=r.amt;nc++}prev=r.bal}
+ if(nd!==+summary[2]||nc!==+summary[3]||Math.abs(dr-num(summary[4]))>.01||Math.abs(cr-num(summary[5]))>.01||Math.abs(prev-num(summary[6]))>.01)throw Error('SBI transaction totals do not match the bank summary.');
+ out[0].ob=num(summary[1]);if(period){out[0].coverageStart=pdt(period[1]);out[0].coverageEnd=pdt(period[2])}
+ meta.bank='State Bank of India';meta.types={[out[0].acc]:'Savings'};return out;
+}
 function parseLines(lines){const DRX=/^\s*(?:\d{1,4}\s+)?(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{1,2}[\/\- ]?[A-Za-z]{3}[\/\- ,]*\d{2,4})/,NRX=/(?<![\w.])(\(?[-+]?(?:\d{1,3}(?:,\d{2,3})+|\d+)\.\d{2}\)?)(?!\d)(?:\s*\(?(Dr|Cr)\)?(?![A-Za-z]))?/gi;
  const isH=l=>/\bdate\b/i.test(l)&&/balance/i.test(l)&&/(withdraw|debit|deposit|credit|amount|\bdr\b|\bcr\b)/i.test(l),gate=lines.some(isH),EX=/\b(transaction turnover|grand total|total|closing balance|opening balance|brought forward|carried forward|sub-?total)\b/i;
  const accs={},blocks=[];let acc='',cur=null,last=null,pend=0,inT=!gate,ld=null,buf=[];const get=a=>accs[a]=accs[a]||{acc:a,dp:0};
@@ -353,8 +394,10 @@ async function exportXl(A,modes,mm){const R=A.rows,M=A.ms,mo=A.mo,wb=XLSX.utils.
  add('Coverage',[['File','From','To','Transactions'],...COV.F.map(f=>[f.name,ds(new Date(f.from)),ds(new Date(f.to)),f.n]),[],['Gap type','From','To'],...COV.gaps.map(g=>[COV.miss.includes(g)?'MISSING (balances do not reconcile)':'Not covered (balances reconcile)',ds(g[0]),ds(g[1])]),[],['Balance discontinuity from','To','Unexplained amount'],...COV.cont.map(c=>[ds(c[0]),ds(c[1]),c[2]]),[],['Months with no transactions',COV.empty.join(', ')],['Duplicates removed',DUP]]);
  add('Deviations',[['Deviation'],...(A.dev.length?A.dev.map(d=>[d]):[['None']])]);
  add('Formulas',[['Metric','Formula'],['ABB daily','Sum of daily closing balances (carried forward) / days in period; OD/CC uses min(limit,DP) - |balance|'],['ABB dates','Average balance on 1,3,5,10,15 of each month'],['Dr/Cr ratio','Total debits / total credits'],['Utilisation %','Peak |balance| / limit x 100'],['Cheque bounce %','Bounced cheques / debits x 100'],['Inward % / Outward %','Returns / cheque debits (all debits if none); limits 4% / 5%'],['Running balance','prev balance +/- amount = current balance (tolerance Rs 1)'],['EMI date coverage','Months where previous-day balance >= EMI / months x 100'],['Risk score','8/running-balance break (max 40)+25/debit or credit with no balance change (max 50)+10 date order+20 PDF edit+5/cyclic pair (max 15)+5 stock+5 legal+3/EMI bounce (max 10)']]);
- const graphSpecs=attachDashboardData(wb);
- await sv('Bank_Analysis_'+(meta.name||'customer').replace(/\W+/g,'_')+'.xlsx',embedExcelDashboard(XLSX.write(wb,{type:'array',bookType:'xlsx',compression:false}),graphSpecs))}
+ attachDashboardData(wb);
+ // Keep the final workbook inside SheetJS' standard XLSX writer. Hand-editing chart XML made
+ // desktop Excel display a recovery warning on some versions.
+ await sv('Bank_Analysis_'+(meta.name||'customer').replace(/\W+/g,'_')+'.xlsx',XLSX.write(wb,{type:'array',bookType:'xlsx',compression:true}))}
 // All charts stay INSIDE the first worksheet. No image files or extra downloads.
 let exportChartConfigs=[];
 const excelChartTitles=['Cash flows (INR lakh)','Average / closing balance (INR lakh)','Credit composition (INR lakh)','Payment modes (INR lakh)','EMI candidates / reversals (INR lakh)','Outgoing keyword matches (INR)'];
@@ -367,17 +410,27 @@ function dashboardRows(A){
  const vals=[A.tcr,A.tdr,A.tcr-A.tdr,A.abb,A.rows.at(-1).bal,A.cbs.length];
  labels.forEach((v,i)=>{set(6,1+i*4,v);set(7,1+i*4,Math.round(vals[i]*100)/100)});
  set(9,1,A.rows.length+' transactions | '+A.breaks+' balance breaks | EMI candidates require a loan schedule | Statement age '+A.age+' days');
- set(38,1,'NEW: six embedded charts on this first sheet. Yellow marks revised information; graphs are editable Excel charts.');
+ set(38,1,'Six in-sheet visual summaries are included below the key figures.');
  set(39,1,'CAUTION: narration categories are not verified income or EMI. No keyword match is not a clean-risk certificate.');
  set(40,1,'Axis review: full-period ABB, source totals, two confirmed cheque returns and TPARTY false flags corrected.');
  return out;
 }
 function attachDashboardData(wb){
- const sh=wb.Sheets['Summary'];sh['!cols']=Array.from({length:24},()=>({wch:7}));sh['!rows']=Array.from({length:40},(_,i)=>({hpt:i===0?24:18}));
- sh['!merges']=[...['A1:X1','A2:X2','A3:X3','A4:X4','A9:X9','A38:X38','A39:X39','A40:X40'].map(XLSX.utils.decode_range),...Array.from({length:6},(_,i)=>[6,7].map(r=>XLSX.utils.decode_range(XLSX.utils.encode_cell({r:r-1,c:i*4})+':'+XLSX.utils.encode_cell({r:r-1,c:i*4+3})))).flat()];
+ const sh=wb.Sheets['Summary'],widths=[14,12,16,12,16,3,3,3];sh['!cols']=Array.from({length:24},(_,i)=>({wch:widths[i%8]}));sh['!rows']=Array.from({length:40},(_,i)=>({hpt:i===0?24:18}));
+ sh['!merges']=[...['A1:X1','A2:X2','A3:X3','A4:X4','A9:X9','A11:E11','I11:M11','Q11:U11','A24:E24','I24:M24','Q24:U24','A38:X38','A39:X39','A40:X40'].map(XLSX.utils.decode_range),...Array.from({length:6},(_,i)=>[6,7].map(r=>XLSX.utils.decode_range(XLSX.utils.encode_cell({r:r-1,c:i*4})+':'+XLSX.utils.encode_cell({r:r-1,c:i*4+3})))).flat()];
  const data=wb.Sheets['Monthly Analysis'];
- exportChartConfigs.forEach((cf,i)=>{const matrix=[['Chart category',...cf.data.datasets.map((d,j)=>d.label||'Amount')],...cf.data.labels.map((label,k)=>[i===2?['E-comm','Other receipts','Salary','Loan cand.','Cash','Reversals'][k]:label,...cf.data.datasets.map(d=>d.data[k])])];XLSX.utils.sheet_add_aoa(data,[[excelChartTitles[i]],...matrix],{origin:{r:i*20,c:8}})});
- return exportChartConfigs.map((cf,i)=>({type:cf.type,title:excelChartTitles[i],labels:i===2?['E-comm','Other receipts','Salary','Loan cand.','Cash','Reversals']:cf.data.labels,datasets:cf.data.datasets.map(d=>({label:d.label||'Amount',data:d.data})),startRow:i*20+3}));
+ exportChartConfigs.forEach((cf,i)=>{
+  const labels=i===2?['E-comm','Other receipts','Salary','Loan cand.','Cash','Reversals']:cf.data.labels;
+  const matrix=[['Chart category',...cf.data.datasets.map(d=>d.label||'Amount')],...labels.map((label,k)=>[label,...cf.data.datasets.map(d=>d.data[k])])];
+  XLSX.utils.sheet_add_aoa(data,[[excelChartTitles[i]],...matrix],{origin:{r:i*20,c:8}});
+  // A compact in-cell graph is intentionally used instead of hand-built OOXML charts.
+  // It remains fully visible/editable in Excel and avoids workbook recovery prompts.
+  const sets=cf.data.datasets,max=Math.max(1,...sets.flatMap(d=>d.data.map(v=>Math.abs(Number(v)||0)))),short=s=>String(s||'Amount').replace(/\s*\(L\)/g,'').replace('Debit candidates','EMI debits');
+  const head=['Category',short(sets[0]?.label),'Graph'];if(sets[1])head.push(short(sets[1].label),'Graph');
+  const rows=labels.slice(0,8).map((label,k)=>{const a=Number(sets[0]?.data[k])||0,b=Number(sets[1]?.data[k])||0,r=[label,a,'█'.repeat(Math.round(Math.abs(a)/max*12))];if(sets[1])r.push(b,'█'.repeat(Math.round(Math.abs(b)/max*12)));return r});
+  const col=(i%3)*8,row=i<3?10:23;
+  XLSX.utils.sheet_add_aoa(sh,[[excelChartTitles[i]],head,...rows],{origin:{r:row,c:col}});
+ });
 }
 function xmlSafe(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]))}
 function excelChartXML(g,idx){
