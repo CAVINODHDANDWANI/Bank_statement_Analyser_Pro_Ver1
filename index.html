@@ -75,6 +75,23 @@ async function ocrCanvases(get,n){if(!window.Tesseract)throw new Error('OCR engi
 const pdfCanvas=pdf=>async i=>{const pg=await pdf.getPage(i),vp=pg.getViewport({scale:2.5}),cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;await pg.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;return cv};
 
 // Axis coordinate parser: transaction anchors retain amount/date/narration alignment.
+function readAxisRetail(pages){
+ const text=pages.flat().map(i=>i.str).join(' '),h=text.match(/Statement of Axis Account No\s*:\s*(\d+).*?From\s*:\s*(\d{2}-\d{2}-\d{4})\s*To\s*:\s*(\d{2}-\d{2}-\d{4})/i);if(!h)return null;
+ const out=[],first=pages[0],openingLabel=first.find(i=>i.str==='OPENING BALANCE'),opening=first.find(i=>i.transform[4]>450&&Math.abs(i.transform[5]-openingLabel.transform[5])<1&&/\d+\.\d{2}/.test(i.str));
+ if(!opening)throw Error('Axis opening balance missing.');let prev=num(opening.str);
+ for(let p=0;p<pages.length;p++){const items=pages[p],anchors=items.filter(i=>i.transform[4]<85&&/^\d{2}-\d{2}-\d{4}$/.test(i.str)).sort((a,b)=>b.transform[5]-a.transform[5]);
+  for(let z=0;z<anchors.length;z++){const dt=anchors[z],y=dt.transform[5],top=z?anchors[z-1].transform[5]:p===0?openingLabel.transform[5]:1e5;
+   const money=items.filter(i=>Math.abs(i.transform[5]-y)<1&&/^[\d,]+\.\d{2}$/.test(i.str)&&i.transform[4]>320&&i.transform[4]<530),balance=money.find(i=>i.transform[4]>450),amount=money.find(i=>i.transform[4]<450);
+   if(!balance||!amount||money.length!==2)throw Error('Axis amount columns unsupported on page '+(p+1));
+   const dr=amount.transform[4]<385,amt=num(amount.str),bal=num(balance.str);if(Math.abs(Math.round(prev*100)+Math.round((dr?-amt:amt)*100)-Math.round(bal*100))>1)throw Error('Axis balance mismatch on page '+(p+1));
+   const n=items.filter(i=>i.str.trim()&&i.transform[4]>=130&&i.transform[4]<325&&i.transform[5]>=y-.5&&i.transform[5]<top-.5).sort((a,b)=>b.transform[5]-a.transform[5]||a.transform[4]-b.transform[4]).map(i=>i.str).join(' ');
+   out.push({d:pdt(dt.str),n,amt,bal,dr,acc:h[1],sourcePage:p+1});prev=bal;
+  }
+ }
+ const tail=pages.flat(),label=tail.find(i=>i.str==='TRANSACTION TOTAL'),page=pages.find(a=>a.includes(label)),tot=page?.filter(i=>Math.abs(i.transform[5]-label.transform[5])<1&&/^[\d,]+\.\d{2}$/.test(i.str)).sort((a,b)=>a.transform[4]-b.transform[4]);
+ if(!out.length||tot?.length!==2||Math.abs(out.filter(r=>r.dr).reduce((s,r)=>s+r.amt,0)-num(tot[0].str))>.01||Math.abs(out.filter(r=>!r.dr).reduce((s,r)=>s+r.amt,0)-num(tot[1].str))>.01)throw Error('Axis totals do not match source.');
+ out[0].ob=num(opening.str);out[0].coverageStart=pdt(h[2]);out[0].coverageEnd=pdt(h[3]);meta.name=first.filter(i=>i.str.trim()&&i.transform[4]<100).sort((a,b)=>b.transform[5]-a.transform[5])[0].str;meta.bank='Axis';meta.types={[h[1]]:'Savings'};return out;
+}
 function readAxisColumns(pages){
  const text=pages.flat().map(i=>i.str).join(' ');
  if(!/Statement of Axis Bank Account No\s*:/i.test(text))return null;
@@ -163,7 +180,7 @@ async function readIdfcStatement(pdf,pages){
  for(let p=0;p<pages.length;p++){
   const items=pages[p],op=await(await pdf.getPage(p+1)).getOperatorList(),rules=[],stack=[];let m=[1,0,0,1,0,0];
   const mul=(a,b)=>[a[0]*b[0]+a[2]*b[1],a[1]*b[0]+a[3]*b[1],a[0]*b[2]+a[2]*b[3],a[1]*b[2]+a[3]*b[3],a[0]*b[4]+a[2]*b[5]+a[4],a[1]*b[4]+a[3]*b[5]+a[5]];
-  for(let j=0;j<op.fnArray.length;j++){const f=op.fnArray[j],a=op.argsArray[j];if(f===pdfjsLib.OPS.save)stack.push(m.slice());else if(f===pdfjsLib.OPS.restore)m=stack.pop()||m;else if(f===pdfjsLib.OPS.transform)m=mul(m,a);else if(f===pdfjsLib.OPS.constructPath){const b=a[2];if(b&&b[2]-b[0]>400&&Math.abs(b[3]-b[1])<.1)rules.push(m[1]*b[0]+m[3]*b[1]+m[5])}}
+  for(let j=0;j<op.fnArray.length;j++){const f=op.fnArray[j],a=op.argsArray[j];if(f===pdfjsLib.OPS.save)stack.push(m.slice());else if(f===pdfjsLib.OPS.restore)m=stack.pop()||m;else if(f===pdfjsLib.OPS.transform)m=mul(m,a);else if(f===pdfjsLib.OPS.constructPath){const raw=a[2],b=raw&&(Array.isArray(a[0])?[raw[0],raw[2],raw[1],raw[3]]:raw);if(b&&b[2]-b[0]>400&&Math.abs(b[3]-b[1])<.1)rules.push(m[1]*b[0]+m[3]*b[1]+m[5])}}
   const dates=items.filter(i=>i.transform[4]<110&&/^\d{2}-[A-Za-z]{3}-\d{4}$/.test(i.str));
   for(const dt of dates){const y=dt.transform[5],top=Math.min(...rules.filter(v=>v>y)),bottom=Math.max(...rules.filter(v=>v<y));if(!isFinite(top)||!isFinite(bottom))throw Error('IDFC table boundaries not recognised.');
    const cell=items.filter(i=>i.str.trim()&&i.transform[5]<top&&i.transform[5]>bottom),money=cell.filter(i=>/^[\d,]+\.\d{2}$/.test(i.str)&&i.transform[4]>345),bal=money.find(i=>i.transform[4]>500),amt=money.find(i=>i.transform[4]<500);
@@ -187,7 +204,7 @@ async function readPdf(buf,fileName){const pdf=await openStatementPdf(buf,fileNa
   tc.items.forEach(i=>{if(!i.str.trim())return;const y=Math.round(i.transform[5]/3);(by[y]=by[y]||[]).push([i.transform[4],i.str])});
   Object.keys(by).sort((a,b)=>b-a).forEach(y=>lines.push(by[y].sort((a,b)=>a[0]-b[0]).map(a=>a[1]).join('  ')))}
  let txt=lines.join('\n'),scan=false;if(txt.replace(/\s/g,'').length<200){scan=true;lines.length=0;lines.push(...await ocrCanvases(pdfCanvas(pdf),pdf.numPages));txt=lines.join('\n')}
- meta=getMeta(txt.slice(0,3000)+'\n'+txt);meta.pdf=md;meta.scan=scan;return await readIdfcStatement(pdf,pages)||readSbiStatement(lines,pages)||readIciciColumns(pages)||readAxisColumns(pages)||parseLines(lines)}
+ meta=getMeta(txt.slice(0,3000)+'\n'+txt);meta.pdf=md;meta.scan=scan;return await readIdfcStatement(pdf,pages)||readSbiStatement(lines,pages)||readIciciColumns(pages)||readAxisRetail(pages)||readAxisColumns(pages)||parseLines(lines)}
 function readSbiStatement(lines,pages){
  const text=lines.join('\n');if(!/State Bank of India/i.test(text)||!/Statement Summary/i.test(text))return null;
  const end=lines.findIndex(l=>/Statement Summary/i.test(l)),out=parseLines(lines.slice(0,end));
@@ -334,6 +351,7 @@ function analyse(){const c=cfg,od=/OD|CC/.test(c.type),lim=Math.min(c.lim||0,c.d
 const tb=(h,b,cl)=>`<div class="tw"><table><tr>${h.map(x=>'<th>'+x+'</th>').join('')}</tr>${b.map(r=>'<tr'+(cl&&cl(r)?' class="r"':'')+'>'+r.map(x=>'<td>'+E(x)+'</td>').join('')+'</tr>').join('')||'<tr><td colspan='+h.length+'>None found</td></tr>'}</table></div>`;
 const flag=(a)=>a.length?'<span class="tag r">'+a.length+' found</span>':'<span class="tag g">None</span>';
 $('go').onclick=()=>{cfg={type:$('ty').value,lim:+$('lm').value,dp:+$('dp').value,emi:+$('em').value};
+ if(COV&&COV.cont.length/Math.max(1,rows.length)>.05){alert('This statement has too many balance mismatches to produce a reliable analysis. Please provide the original PDF for parser review.');return}
  if(/OD|CC/.test(cfg.type)&&!cfg.lim){alert('Please enter the sanctioned limit for OD/CC accounts.');return}
  meta.name=$('cn').value;meta.bank=$('bn').value;meta.acc=$('an').value;const A=last=analyse();render(A);log(A)};
 function render(A){charts.forEach(c=>c.destroy());charts=[];exportChartConfigs=[];const rk=A.risk<25?['Low','ok']:A.risk<55?['Medium','wa']:['High','bd'],R=A.rows,M=A.ms,mo=A.mo;
