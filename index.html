@@ -198,13 +198,42 @@ async function readIdfcStatement(pdf,pages){
  if(Math.abs(debit-totals[1])>.01||Math.abs(credit-totals[2])>.01||Math.abs(prev-totals[3])>.01)throw Error('IDFC source totals mismatch.');
  out[0].ob=totals[0];meta.types={[account]:'Current'};return out;
 }
+async function readEquitasScan(get,n,text){
+ const worker=await Tesseract.createWorker('eng',1,{...(window.OCRX||OCRP)}),out=[];let summary='';
+ const crop=(cv,x,y,w,h)=>{const a=document.createElement('canvas');a.width=Math.round(w);a.height=Math.round(h);a.getContext('2d').drawImage(cv,x,y,w,h,0,0,a.width,a.height);return a};
+ const recognise=async cv=>{const r=await worker.recognize(cv,{}, {text:true,tsv:true});return r.data};
+ const words=d=>String(d.tsv||'').split('\n').slice(1).map(l=>l.split('\t')).filter(a=>a[0]==='5'&&a[11]?.trim()).map(a=>({s:a.slice(11).join('\t').trim(),x:+a[6],y:+a[7],w:+a[8],h:+a[9]}));
+ try{await worker.setParameters({tessedit_pageseg_mode:'6',preserve_interword_spaces:'1'});
+ for(let p=1;p<=n;p++){const cv=await get(p),W=cv.width,H=cv.height,ctx=cv.getContext('2d'),pixels=ctx.getImageData(0,0,W,H).data,groups=[];
+  for(let y=0;y<H;y++){let dark=0,grey=0;for(let x=Math.floor(W*.041);x<W*.954;x++){const k=(y*W+x)*4,v=(pixels[k]+pixels[k+1]+pixels[k+2])/3;if(v<170)dark++;if(v<220)grey++}if(dark>W*.65||grey>W*.70){if(groups.length&&y-groups.at(-1).at(-1)<3)groups.at(-1).push(y);else groups.push([y])}}
+  const rules=groups.map(g=>g.reduce((a,b)=>a+b,0)/g.length),dateX=W*.043,dateW=W*.084;
+  const dd=await recognise(crop(cv,dateX,0,dateW,H)),dates=words(dd).filter(w=>/^\d{2}-[A-Za-z]{3}-\d{4}$/.test(w.s));
+  if(p===1){const name=await recognise(crop(cv,W*.043,H*.171,W*.44,H*.018));meta.name=name.text.trim().split('\n')[0];const account=await recognise(crop(cv,W*.515,H*.171,W*.25,H*.020));meta.acc=account.text.match(/\b\d{10,18}\b/)?.[0]||meta.acc;if(!meta.acc)throw Error('Equitas account number unclear; review original.');}
+  for(const date of dates){const cy=date.y+date.h/2,top=Math.max(...rules.filter(y=>y<cy)),bottom=Math.min(...rules.filter(y=>y>cy));if(!isFinite(top)||!isFinite(bottom)||bottom-top>H*.07)throw Error('Equitas scanned row boundaries unclear; review original.');
+   const y=Math.ceil(top+3),height=Math.floor(bottom-top-6),row=crop(cv,W*.315,y,W*.642,height),c=row.getContext('2d');c.fillStyle='white';for(const x of [.635,.732,.829])c.fillRect((x-.315)*W-3,0,6,height);
+   const data=await recognise(row),ww=words(data),values=[[],[],[]];
+   for(const w of ww){const x=w.x/W+.315;if(x<.635)continue;const s=w.s.replace(/[|₹]/g,'').replace(/O/g,'0');if(!/^[\d,]+\.\d{2}$/.test(s))continue;values[x<.732?0:x<.829?1:2].push(num(s))}
+   if(values.some(a=>a.length!==1))throw Error('Equitas OCR amount unclear on page '+p+' ('+date.s+'); review original.');
+   const [debit,credit,bal]=values.map(a=>a[0]);if((debit>0)===(credit>0))throw Error('Equitas debit/credit columns unclear.');
+   const narration=ww.filter(w=>w.x/W+.315<.635).map(w=>w.s).join(' ');
+   out.push({d:pdt(date.s),n:narration,amt:debit||credit,dr:debit>0,bal,acc:meta.acc,sourcePage:p});
+  }
+  if(p===n){await worker.setParameters({tessedit_pageseg_mode:'7'});const cells=[];for(const [left,right] of [[.039,.184],[.241,.403],[.403,.580],[.580,.692],[.692,.808],[.808,.958]]){const a=await recognise(crop(cv,W*left+4,H*.426,W*(right-left)-8,H*.017));cells.push(a.text.trim())}summary=cells.join(' ');await worker.setParameters({tessedit_pageseg_mode:'6'});}
+ }
+ const numbers=summary.match(/[\d,]+\.\d{2}/g)?.map(num);if(numbers?.length!==4)throw Error('Equitas scanned summary could not be verified.');
+ let prev=numbers[0],dr=0,cr=0;for(const r of out){if(Math.abs(Math.round(prev*100)+Math.round((r.dr?-r.amt:r.amt)*100)-Math.round(r.bal*100))>1)throw Error('Equitas OCR running balance mismatch; review original.');prev=r.bal;if(r.dr)dr+=r.amt;else cr+=r.amt}
+ const counts=summary.replace(/[\d,]+\.\d{2}/g,'').match(/\b\d+\b/g)?.map(Number);
+ if(!counts||counts.length!==2||out.filter(r=>r.dr).length!==counts[0]||out.filter(r=>!r.dr).length!==counts[1]||Math.abs(dr-numbers[1])>.01||Math.abs(cr-numbers[2])>.01||Math.abs(prev-numbers[3])>.01)throw Error('Equitas OCR totals/counts do not match statement summary.');
+ if(!out.length)throw Error('Equitas transactions not found.');out[0].ob=numbers[0];const period=text.match(/Period from\s*(\d{2}-[A-Za-z]{3}-\d{4})\s*to\s*(\d{2}-[A-Za-z]{3}-\d{4})/i);if(period){out[0].coverageStart=pdt(period[1]);out[0].coverageEnd=pdt(period[2])}meta.bank='Equitas';meta.types={[meta.acc]:'Savings'};return out;
+ }finally{await worker.terminate()}
+}
 async function readPdf(buf,fileName){const pdf=await openStatementPdf(buf,fileName),lines=[],pages=[];let md={};
  try{md=(await pdf.getMetadata()).info||{}}catch(e){}
  for(let p=1;p<=pdf.numPages;p++){const tc=await(await pdf.getPage(p)).getTextContent(),by={};pages.push(tc.items);
   tc.items.forEach(i=>{if(!i.str.trim())return;const y=Math.round(i.transform[5]/3);(by[y]=by[y]||[]).push([i.transform[4],i.str])});
   Object.keys(by).sort((a,b)=>b-a).forEach(y=>lines.push(by[y].sort((a,b)=>a[0]-b[0]).map(a=>a[1]).join('  ')))}
  let txt=lines.join('\n'),scan=false;if(txt.replace(/\s/g,'').length<200){scan=true;lines.length=0;lines.push(...await ocrCanvases(pdfCanvas(pdf),pdf.numPages));txt=lines.join('\n')}
- meta=getMeta(txt.slice(0,3000)+'\n'+txt);meta.pdf=md;meta.scan=scan;return await readIdfcStatement(pdf,pages)||readSbiStatement(lines,pages)||readIciciColumns(pages)||readAxisRetail(pages)||readAxisColumns(pages)||parseLines(lines)}
+ meta=getMeta(txt.slice(0,3000)+'\n'+txt);meta.pdf=md;meta.scan=scan;if(scan&&/Equitas/i.test(txt))return await readEquitasScan(pdfCanvas(pdf),pdf.numPages,txt);return await readIdfcStatement(pdf,pages)||readSbiStatement(lines,pages)||readIciciColumns(pages)||readAxisRetail(pages)||readAxisColumns(pages)||parseLines(lines)}
 function readSbiStatement(lines,pages){
  const text=lines.join('\n');if(!/State Bank of India/i.test(text)||!/Statement Summary/i.test(text))return null;
  const end=lines.findIndex(l=>/Statement Summary/i.test(l)),out=parseLines(lines.slice(0,end));
